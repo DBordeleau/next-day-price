@@ -1,25 +1,73 @@
-import { scaffoldLeaderboard, scaffoldPredictions } from "../api/dashboardData";
-import DashboardHeader from "../components/DashboardHeader";
-import LeaderboardTable from "../components/LeaderboardTable";
-import MetricCard from "../components/MetricCard";
-import PredictionTable from "../components/PredictionTable";
-import TickerChart from "../components/TickerChart";
+import { useState } from "react";
+import type { MetricWindow } from "../api/dashboardData";
+import TickerChart from "../components/charts/TickerChart";
+import AnimatedSection from "../components/layout/AnimatedSection";
+import DashboardFooter from "../components/layout/DashboardFooter";
+import DashboardHeader from "../components/layout/DashboardHeader";
+import DashboardShell from "../components/layout/DashboardShell";
+import LeaderboardChart from "../components/leaderboard/LeaderboardChart";
+import LeaderboardTable from "../components/leaderboard/LeaderboardTable";
+import WindowSelector from "../components/leaderboard/WindowSelector";
+import MetricStrip from "../components/metrics/MetricStrip";
+import PredictionTable from "../components/predictions/PredictionTable";
+import { useDashboardData } from "../hooks/useDashboardData";
 
 export default function Dashboard() {
+  const [window, setWindow] = useState<MetricWindow>("7d");
+  const dashboard = useDashboardData();
+
   return (
-    <main className="dashboard-shell">
-      <DashboardHeader />
-      <section className="metrics-row">
-        <MetricCard label="Best 30D Model" value="Pending" />
-        <MetricCard label="Directional Leader" value="Pending" />
-        <MetricCard label="Baseline Rank" value="Pending" />
-        <MetricCard label="Scored Predictions" value="0" />
-      </section>
+    <DashboardShell
+      error={dashboard.error}
+      hasSupabaseConfig={dashboard.hasSupabaseConfig}
+      onRetry={dashboard.refetch}
+    >
+      <AnimatedSection delay={0}>
+        <DashboardHeader />
+      </AnimatedSection>
+      <AnimatedSection delay={0.08}>
+        <div className="page-window-control">
+          <WindowSelector value={window} onChange={setWindow} className="prominent-window-selector" />
+        </div>
+      </AnimatedSection>
+      <AnimatedSection delay={0.14}>
+        <MetricStrip
+          leaderboard={dashboard.leaderboard}
+          window={window}
+          loading={dashboard.loading}
+        />
+      </AnimatedSection>
+      <AnimatedSection delay={0.2}>
+        <LeaderboardTable
+          rows={dashboard.leaderboard}
+          window={window}
+          loading={dashboard.loading}
+        />
+      </AnimatedSection>
       <div className="dashboard-grid">
-        <LeaderboardTable rows={scaffoldLeaderboard} />
-        <PredictionTable rows={scaffoldPredictions} />
+        <div className="dashboard-primary">
+          <AnimatedSection delay={0.26}>
+            <TickerChart
+              history={dashboard.tickerHistory}
+              predictions={dashboard.latestPredictions}
+              selectedTicker={dashboard.selectedTicker}
+              onTickerChange={dashboard.setSelectedTicker}
+              loading={dashboard.historyLoading || dashboard.loading}
+            />
+          </AnimatedSection>
+        </div>
+        <div className="dashboard-secondary">
+          <AnimatedSection delay={0.32}>
+            <LeaderboardChart rows={dashboard.leaderboard} window={window} loading={dashboard.loading} />
+          </AnimatedSection>
+          <AnimatedSection delay={0.38}>
+            <PredictionTable rows={dashboard.latestPredictions} loading={dashboard.loading} collapsible />
+          </AnimatedSection>
+        </div>
       </div>
-      <TickerChart />
-    </main>
+      <AnimatedSection delay={0.44}>
+        <DashboardFooter metadata={dashboard.metadata} loading={dashboard.loading} />
+      </AnimatedSection>
+    </DashboardShell>
   );
 }
