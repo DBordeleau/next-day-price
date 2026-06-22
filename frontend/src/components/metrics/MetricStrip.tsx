@@ -1,17 +1,20 @@
 import { FiAward, FiTarget, FiTrendingUp } from "react-icons/fi";
 import { BsAwardFill } from "react-icons/bs";
-import type { LeaderboardRow, MetricWindow } from "../../api/dashboardData";
+import type { LeaderboardRow, MetricHorizon, MetricWindow } from "../../api/dashboardData";
 import { formatMetric, formatPercent } from "../../utils/format";
 import MetricCard from "./MetricCard";
 
 type Props = {
   leaderboard: LeaderboardRow[];
   window: MetricWindow;
+  horizon: MetricHorizon;
   loading: boolean;
 };
 
-export default function MetricStrip({ leaderboard, window, loading }: Props) {
-  const rows = leaderboard.filter((row) => row.window === window);
+export default function MetricStrip({ leaderboard, window, horizon, loading }: Props) {
+  const rows = leaderboard.filter(
+    (row) => row.window === window && row.prediction_horizon === horizon,
+  );
   const ranked = rows.filter((row) => row.rank != null).sort((a, b) => (a.rank ?? 99) - (b.rank ?? 99));
   const bestByMae = ranked[0];
   const bestDirection = [...rows]

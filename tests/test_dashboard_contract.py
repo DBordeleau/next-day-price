@@ -36,6 +36,7 @@ class DashboardContractTest(unittest.TestCase):
 
         leaderboard = tables["dashboard_model_leaderboard"]
         windows = {row["evaluation_window"] for row in leaderboard}
+        horizons = {row["prediction_horizon"] for row in leaderboard}
         baseline_30d = [
             row
             for row in leaderboard
@@ -45,9 +46,31 @@ class DashboardContractTest(unittest.TestCase):
         ][0]
 
         self.assertEqual(windows, set(METRIC_WINDOWS))
+        self.assertEqual(horizons, {"1w", "1m", "3m", "1y", "all"})
         self.assertEqual(baseline_30d["scored_count"], 1)
         self.assertEqual(baseline_30d["rank"], 1)
         self.assertEqual(baseline_30d["model_type"], "Benchmark")
+
+    def test_dashboard_outputs_model_metrics_table(self) -> None:
+        prediction = _prediction("AAPL", "2026-01-02", "Baseline")
+        tables = build_dashboard_tables(
+            prediction_rows=[prediction],
+            score_rows=[_score(prediction["prediction_id"])],
+            price_rows=[_price("AAPL", "2026-01-02", 101.0)],
+            settings=Settings(),
+        )
+
+        metrics = tables["dashboard_model_metrics"]
+        pooled_metric = [
+            row
+            for row in metrics
+            if row["evaluation_window"] == "all"
+            and row["prediction_horizon"] == "all"
+            and row["model_name"] == "Baseline"
+        ][0]
+
+        self.assertEqual(pooled_metric["model_slug"], "baseline")
+        self.assertEqual(pooled_metric["scored_count"], 1)
 
     def test_model_leaderboard_hides_removed_linear_variants(self) -> None:
         ridge_prediction = _prediction("AAPL", "2026-01-02", "Ridge Regression")
@@ -143,6 +166,7 @@ def _score(prediction_id: str, model_name: str = "Baseline") -> dict:
         "predicted_direction": 1,
         "actual_direction": 1,
         "direction_correct": 1,
+        "scored_at": "2026-01-02T12:00:00+00:00",
     }
 
 
