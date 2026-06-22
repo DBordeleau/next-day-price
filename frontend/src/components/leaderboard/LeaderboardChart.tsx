@@ -8,18 +8,21 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import type { LeaderboardRow, MetricWindow } from "../../api/dashboardData";
+import type { LeaderboardRow, MetricHorizon, MetricWindow } from "../../api/dashboardData";
 import SectionPanel from "../layout/SectionPanel";
 
 type Props = {
   rows: LeaderboardRow[];
   window: MetricWindow;
+  horizon: MetricHorizon;
   loading: boolean;
 };
 
-export default function LeaderboardChart({ rows, window, loading }: Props) {
+export default function LeaderboardChart({ rows, window, horizon, loading }: Props) {
   const data = rows
-    .filter((row) => row.window === window && row.mae != null)
+    .filter(
+      (row) => row.window === window && row.prediction_horizon === horizon && row.mae != null,
+    )
     .sort((a, b) => (a.mae ?? 0) - (b.mae ?? 0))
     .map((row) => ({
       model: row.model_name,

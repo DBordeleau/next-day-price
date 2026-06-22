@@ -8,6 +8,7 @@ SNAPSHOT_FILENAMES: dict[str, str] = {
     "dashboard_latest_predictions": "latest_predictions.json",
     "dashboard_model_leaderboard": "model_leaderboard.json",
     "dashboard_ticker_history": "ticker_history.json",
+    "dashboard_model_metrics": "model_metrics.json",
     "dashboard_run_metadata": "run_metadata.json",
 }
 
