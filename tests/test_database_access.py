@@ -126,6 +126,11 @@ class DatabaseAccessTest(unittest.TestCase):
                 "predicted_direction": 1,
                 "actual_direction": 1,
                 "direction_correct": 1,
+                "interval_hit": True,
+                "interval_width": 10.0,
+                "interval_width_pct": 0.1,
+                "interval_miss_distance": 0.0,
+                "winkler_score": 10.0,
                 "scored_at": "2026-01-03T00:00:00+00:00",
                 "transient_pipeline_field": "do not persist",
             }
@@ -138,6 +143,7 @@ class DatabaseAccessTest(unittest.TestCase):
         self.assertEqual(client.operations[0]["action"], "upsert")
         self.assertEqual(client.operations[0]["on_conflict"], "prediction_id")
         self.assertNotIn("transient_pipeline_field", client.operations[0]["rows"][0])
+        self.assertEqual(client.operations[0]["rows"][0]["winkler_score"], 10.0)
 
     def test_fetch_latest_fundamentals_coexists_with_prediction_access(self) -> None:
         database, client = _database_with_fake_client()
