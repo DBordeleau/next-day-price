@@ -7,6 +7,9 @@ import pandas as pd
 
 from pipeline.evaluation.metrics import absolute_percentage_error, direction
 
+DEFAULT_INTERVAL_LEVEL = 0.80
+WINKLER_ALPHA = 1 - DEFAULT_INTERVAL_LEVEL
+
 
 def score_matured_predictions(
     prediction_rows: list[dict[str, Any]],
@@ -85,15 +88,16 @@ def _interval_score_fields(
 
     lower_close = float(lower)
     upper_close = float(upper)
-    interval_level = float(prediction.get("interval_level") or 0.80)
-    alpha = 1 - interval_level
+    if lower_close > upper_close:
+        lower_close, upper_close = upper_close, lower_close
+
     width = upper_close - lower_close
     miss_distance = _interval_miss_distance(actual_close, lower_close, upper_close)
 
     if actual_close < lower_close:
-        winkler_score = width + (2 / alpha) * (lower_close - actual_close)
+        winkler_score = width + (2 / WINKLER_ALPHA) * (lower_close - actual_close)
     elif actual_close > upper_close:
-        winkler_score = width + (2 / alpha) * (actual_close - upper_close)
+        winkler_score = width + (2 / WINKLER_ALPHA) * (actual_close - upper_close)
     else:
         winkler_score = width
 
