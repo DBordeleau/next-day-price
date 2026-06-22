@@ -29,7 +29,7 @@ export default function ModelDetail() {
   const dashboard = useDashboardData();
   const latestForModel = dashboard.latestPredictions.filter((row) => row.model_slug === modelSlug);
   const leaderboardForModel = dashboard.leaderboard
-    .filter((row) => row.model_slug === modelSlug)
+    .filter((row) => row.model_slug === modelSlug && row.prediction_horizon === "all")
     .sort((a, b) => windowOrder[a.window] - windowOrder[b.window]);
   const modelName = latestForModel[0]?.model_name ?? leaderboardForModel[0]?.model_name;
   const info = getModelInfo(modelSlug, modelName);
@@ -83,9 +83,9 @@ export default function ModelDetail() {
                     <Table.Th>Window</Table.Th>
                     <Table.Th>Rank</Table.Th>
                     <Table.Th>MAE</Table.Th>
-                    <Table.Th>RMSE</Table.Th>
-                    <Table.Th>MAPE</Table.Th>
                     <Table.Th>Directional</Table.Th>
+                    <Table.Th>Winkler</Table.Th>
+                    <Table.Th className="score-column">Scored</Table.Th>
                   </Table.Tr>
                 </Table.Thead>
                 <Table.Tbody>
@@ -94,9 +94,9 @@ export default function ModelDetail() {
                       <Table.Td>{windowLabels[row.window]}</Table.Td>
                       <Table.Td>{row.rank ? `#${row.rank}` : "Pending"}</Table.Td>
                       <Table.Td>{formatMetric(row.mae)}</Table.Td>
-                      <Table.Td>{formatMetric(row.rmse)}</Table.Td>
-                      <Table.Td>{formatPercent(row.mape)}</Table.Td>
                       <Table.Td>{formatPercent(row.directional_accuracy)}</Table.Td>
+                      <Table.Td>{formatMetric(row.winkler_score)}</Table.Td>
+                      <Table.Td className="score-column">{row.prediction_count.toLocaleString()}</Table.Td>
                     </Table.Tr>
                   ))}
                 </Table.Tbody>

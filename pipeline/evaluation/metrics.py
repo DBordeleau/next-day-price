@@ -2,10 +2,13 @@ from __future__ import annotations
 
 import math
 from collections import defaultdict
-from datetime import date
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
+from pipeline.forecasting.horizons import FORECAST_HORIZONS
+
 METRIC_WINDOWS: tuple[str, ...] = ("7d", "30d", "90d", "all")
+METRIC_HORIZONS: tuple[str, ...] = (*FORECAST_HORIZONS, "all")
 
 
 def direction(value: float) -> int:
@@ -39,13 +42,16 @@ def calculate_model_metrics(score_rows: list[dict[str, Any]]) -> list[dict[str, 
 
 
 def _filter_score_rows(score_rows: list[dict[str, Any]], window: str) -> list[dict[str, Any]]:
+    if not score_rows:
+        return []
+
     if window == "all":
         return score_rows
 
     window_size = int(window.removesuffix("d"))
-    dates = sorted({_parse_date(row["target_date"]) for row in score_rows})
-    included_dates = set(dates[-window_size:])
-    return [row for row in score_rows if _parse_date(row["target_date"]) in included_dates]
+    latest_scored_at = max(_parse_scored_at(row) for row in score_rows)
+    cutoff = latest_scored_at - timedelta(days=window_size - 1)
+    return [row for row in score_rows if _parse_scored_at(row) >= cutoff]
 
 
 def _group_by_horizon_and_model(
@@ -53,7 +59,9 @@ def _group_by_horizon_and_model(
 ) -> dict[tuple[str, str], list[dict[str, Any]]]:
     grouped: dict[tuple[str, str], list[dict[str, Any]]] = defaultdict(list)
     for row in score_rows:
-        grouped[(row.get("prediction_horizon", "1w"), row["model_name"])].append(row)
+        model_name = row["model_name"]
+        grouped[(row.get("prediction_horizon", "1w"), model_name)].append(row)
+        grouped[("all", model_name)].append(row)
     return dict(grouped)
 
 
@@ -115,7 +123,13 @@ def _average_optional_float(values: Any) -> float | None:
     return sum(numbers) / len(numbers)
 
 
-def _parse_date(value: object) -> date:
-    if isinstance(value, date):
-        return value
-    return date.fromisoformat(str(value))
+def _parse_scored_at(row: dict[str, Any]) -> datetime:
+    value = row.get("scored_at") or row["target_date"]
+    if isinstance(value, datetime):
+        parsed = value
+    else:
+        parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+
+    if parsed.tzinfo is None:
+        return parsed.replace(tzinfo=UTC)
+    return parsed.astimezone(UTC)
