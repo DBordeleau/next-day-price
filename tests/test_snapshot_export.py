@@ -14,6 +14,7 @@ class SnapshotExportTest(unittest.TestCase):
             "dashboard_latest_predictions": [{"ticker": "AAPL"}],
             "dashboard_model_leaderboard": [{"model_name": "Baseline"}],
             "dashboard_ticker_history": [],
+            "dashboard_model_metrics": [{"model_name": "Baseline", "scored_count": 1}],
             "dashboard_run_metadata": [{"last_pipeline_status": "success"}],
         }
 
@@ -24,6 +25,7 @@ class SnapshotExportTest(unittest.TestCase):
 
             self.assertEqual(counts["latest_predictions.json"], 1)
             self.assertEqual(counts["ticker_history.json"], 0)
+            self.assertEqual(counts["model_metrics.json"], 1)
             self.assertEqual(json.loads(latest_path.read_text())[0]["ticker"], "AAPL")
             self.assertEqual(
                 json.loads(metadata_path.read_text())[0]["last_pipeline_status"],

@@ -19,10 +19,14 @@ class MetricsTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             absolute_percentage_error(0.0, 10.0)
 
+    def test_model_metrics_handles_empty_scores(self) -> None:
+        self.assertEqual(calculate_model_metrics([]), [])
+
     def test_model_metrics_and_ranking_are_calculated_by_window(self) -> None:
         score_rows = [
             {
                 "target_date": "2026-01-02",
+                "scored_at": "2026-02-01T12:00:00+00:00",
                 "prediction_horizon": "1w",
                 "model_name": "Baseline",
                 "absolute_error": 2.0,
@@ -32,6 +36,7 @@ class MetricsTest(unittest.TestCase):
             },
             {
                 "target_date": "2026-01-02",
+                "scored_at": "2026-02-01T12:00:00+00:00",
                 "prediction_horizon": "1w",
                 "model_name": "Linear Regression",
                 "absolute_error": 1.0,
@@ -42,15 +47,69 @@ class MetricsTest(unittest.TestCase):
         ]
 
         metrics = calculate_model_metrics(score_rows)
-        all_window = [row for row in metrics if row["window"] == "all"]
+        one_week_window = [
+            row
+            for row in metrics
+            if row["window"] == "all" and row["prediction_horizon"] == "1w"
+        ]
+        pooled_window = [
+            row
+            for row in metrics
+            if row["window"] == "all" and row["prediction_horizon"] == "all"
+        ]
 
-        self.assertEqual(len(all_window), 2)
-        self.assertTrue(all(row["prediction_horizon"] == "1w" for row in all_window))
-        self.assertEqual(all_window[0]["model_name"], "Linear Regression")
-        self.assertEqual(all_window[0]["rank"], 1)
-        self.assertEqual(all_window[0]["mae"], 1.0)
-        self.assertEqual(all_window[1]["model_name"], "Baseline")
-        self.assertEqual(all_window[1]["rank"], 2)
+        self.assertEqual(len(one_week_window), 2)
+        self.assertEqual(len(pooled_window), 2)
+        self.assertEqual(one_week_window[0]["model_name"], "Linear Regression")
+        self.assertEqual(one_week_window[0]["rank"], 1)
+        self.assertEqual(one_week_window[0]["mae"], 1.0)
+        self.assertEqual(one_week_window[1]["model_name"], "Baseline")
+        self.assertEqual(one_week_window[1]["rank"], 2)
+
+    def test_metric_windows_filter_by_scored_at_not_target_date(self) -> None:
+        score_rows = [
+            _score_row(
+                model_name="Baseline",
+                target_date="2020-01-01",
+                scored_at="2026-02-01T12:00:00+00:00",
+                absolute_error=1.0,
+            ),
+            _score_row(
+                model_name="Linear Regression",
+                target_date="2026-02-01",
+                scored_at="2026-01-01T12:00:00+00:00",
+                absolute_error=0.5,
+            ),
+        ]
+
+        metrics = calculate_model_metrics(score_rows)
+        seven_day_metrics = [
+            row
+            for row in metrics
+            if row["window"] == "7d" and row["prediction_horizon"] == "1w"
+        ]
+
+        self.assertEqual(len(seven_day_metrics), 1)
+        self.assertEqual(seven_day_metrics[0]["model_name"], "Baseline")
+
+
+def _score_row(
+    *,
+    model_name: str,
+    target_date: str,
+    scored_at: str,
+    absolute_error: float,
+) -> dict:
+    return {
+        "target_date": target_date,
+        "scored_at": scored_at,
+        "prediction_horizon": "1w",
+        "model_name": model_name,
+        "absolute_error": absolute_error,
+        "squared_error": absolute_error**2,
+        "absolute_pct_error": absolute_error / 100,
+        "direction_correct": 1,
+    }
 
 
 if __name__ == "__main__":

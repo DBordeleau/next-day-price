@@ -5,7 +5,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 from pipeline.config import Settings
-from pipeline.evaluation.metrics import METRIC_WINDOWS, calculate_model_metrics
+from pipeline.evaluation.metrics import METRIC_HORIZONS, METRIC_WINDOWS, calculate_model_metrics
 from pipeline.models.registry import (
     ACTIVE_MODEL_NAMES,
     HIDDEN_MODEL_SLUGS,
@@ -37,6 +37,10 @@ def build_dashboard_tables(
             generated_at,
         ),
         "dashboard_model_leaderboard": _build_model_leaderboard(
+            scored_predictions,
+            generated_at,
+        ),
+        "dashboard_model_metrics": _build_model_metrics(
             scored_predictions,
             generated_at,
         ),
@@ -133,6 +137,31 @@ def _build_model_leaderboard(
     return rows
 
 
+def _build_model_metrics(
+    scored_predictions: list[dict[str, Any]],
+    generated_at: str,
+) -> list[dict[str, Any]]:
+    matured_predictions = [
+        row for row in scored_predictions if row.get("absolute_error") is not None
+    ]
+    metric_rows = calculate_model_metrics(matured_predictions)
+
+    return [
+        {
+            "generated_at": generated_at,
+            "evaluation_window": row["window"],
+            "prediction_horizon": row["prediction_horizon"],
+            "model_name": row["model_name"],
+            "model_slug": _model_slug(row["model_name"]),
+            "mae": row["mae"],
+            "directional_accuracy": row["directional_accuracy"],
+            "winkler_score": row.get("winkler_score"),
+            "scored_count": row["prediction_count"],
+        }
+        for row in metric_rows
+    ]
+
+
 def _build_ticker_history(
     scored_predictions: list[dict[str, Any]],
     generated_at: str,
@@ -188,13 +217,7 @@ def _build_run_metadata(
 
 
 def _known_horizons(scored_predictions: list[dict[str, Any]]) -> list[str]:
-    observed = sorted({row.get("prediction_horizon") for row in scored_predictions})
-    return [horizon for horizon in ("1w", "1m", "3m", "1y") if horizon in observed] or [
-        "1w",
-        "1m",
-        "3m",
-        "1y",
-    ]
+    return list(METRIC_HORIZONS)
 
 
 def _merge_predictions_and_scores(

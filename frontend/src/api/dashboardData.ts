@@ -4,7 +4,7 @@ export type LeaderboardRow = {
   generated_at?: string;
   window: "7d" | "30d" | "90d" | "all";
   evaluation_window?: "7d" | "30d" | "90d" | "all";
-  prediction_horizon?: "1w" | "1m" | "3m" | "1y";
+  prediction_horizon?: MetricHorizon;
   model_name: string;
   model_slug: string;
   mae: number | null;
@@ -65,6 +65,7 @@ export type RunMetadata = {
 };
 
 export type MetricWindow = LeaderboardRow["window"];
+export type MetricHorizon = "1w" | "1m" | "3m" | "1y" | "all";
 
 export type DashboardData = {
   leaderboard: LeaderboardRow[];
@@ -84,8 +85,8 @@ export async function fetchLeaderboard(): Promise<LeaderboardRow[]> {
   const { data, error } = await supabase
     .from("dashboard_model_leaderboard")
     .select("*")
-    .eq("prediction_horizon", "1w")
     .order("evaluation_window")
+    .order("prediction_horizon")
     .order("rank", { nullsFirst: false })
     .order("model_name");
 
@@ -174,6 +175,7 @@ function normalizeLeaderboardRow(row: Partial<LeaderboardRow>): LeaderboardRow {
   return {
     ...row,
     window,
+    prediction_horizon: row.prediction_horizon ?? "1w",
     prediction_count: predictionCount,
     rmse: row.rmse ?? null,
     mape: row.mape ?? null,

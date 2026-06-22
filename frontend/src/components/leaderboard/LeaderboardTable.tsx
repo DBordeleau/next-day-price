@@ -2,20 +2,29 @@ import { Badge, Group, Progress, Skeleton, Table, Text } from "@mantine/core";
 import { motion } from "framer-motion";
 import { FiExternalLink } from "react-icons/fi";
 import { Link } from "react-router-dom";
-import type { LeaderboardRow, MetricWindow } from "../../api/dashboardData";
+import type { LeaderboardRow, MetricHorizon, MetricWindow } from "../../api/dashboardData";
 import { formatMetric, formatPercent } from "../../utils/format";
 import { modelTypeColor, normalizeModelType } from "../../utils/models";
 import SectionPanel from "../layout/SectionPanel";
+import HorizonSelector from "./HorizonSelector";
 
 type Props = {
   rows: LeaderboardRow[];
   window: MetricWindow;
+  horizon: MetricHorizon;
+  onHorizonChange: (horizon: MetricHorizon) => void;
   loading: boolean;
 };
 
-export default function LeaderboardTable({ rows, window, loading }: Props) {
+export default function LeaderboardTable({
+  rows,
+  window,
+  horizon,
+  onHorizonChange,
+  loading,
+}: Props) {
   const visibleRows = rows
-    .filter((row) => row.window === window)
+    .filter((row) => row.window === window && row.prediction_horizon === horizon)
     .sort((a, b) => (a.rank ?? 99) - (b.rank ?? 99));
 
   return (
@@ -23,6 +32,9 @@ export default function LeaderboardTable({ rows, window, loading }: Props) {
       title="Leaderboard"
       className="leaderboard-panel"
     >
+      <div className="leaderboard-horizon-control">
+        <HorizonSelector value={horizon} onChange={onHorizonChange} />
+      </div>
       {loading ? (
         <Skeleton height={300} radius="sm" />
       ) : visibleRows.length === 0 ? (
@@ -30,16 +42,15 @@ export default function LeaderboardTable({ rows, window, loading }: Props) {
           No scored predictions yet. Leaderboard rows will appear after target closes arrive.
         </Text>
       ) : (
-        <Table.ScrollContainer minWidth={900}>
+        <Table.ScrollContainer minWidth={780}>
           <Table verticalSpacing="md" className="leaderboard-table">
             <Table.Thead>
               <Table.Tr>
                 <Table.Th>Rank</Table.Th>
                 <Table.Th>Model</Table.Th>
                 <Table.Th>MAE</Table.Th>
-                <Table.Th>RMSE</Table.Th>
-                <Table.Th>MAPE</Table.Th>
                 <Table.Th>Directional</Table.Th>
+                <Table.Th>Winkler</Table.Th>
                 <Table.Th className="score-column">Scored</Table.Th>
               </Table.Tr>
             </Table.Thead>
@@ -48,7 +59,7 @@ export default function LeaderboardTable({ rows, window, loading }: Props) {
                 const modelType = normalizeModelType(row.model_type);
                 return (
                   <motion.tr
-                    key={`${row.window}-${row.model_slug}`}
+                    key={`${row.window}-${row.prediction_horizon}-${row.model_slug}`}
                     initial={{ opacity: 0, x: -8 }}
                     animate={{ opacity: 1, x: 0 }}
                     whileHover={{ x: 4 }}
@@ -73,8 +84,6 @@ export default function LeaderboardTable({ rows, window, loading }: Props) {
                       </Group>
                     </Table.Td>
                     <Table.Td>{formatMetric(row.mae)}</Table.Td>
-                    <Table.Td>{formatMetric(row.rmse)}</Table.Td>
-                    <Table.Td>{formatPercent(row.mape)}</Table.Td>
                     <Table.Td>
                       <Group gap="xs" wrap="nowrap">
                         <Progress.Root className="direction-progress" size="lg">
@@ -98,6 +107,7 @@ export default function LeaderboardTable({ rows, window, loading }: Props) {
                         <Text size="sm">{formatPercent(row.directional_accuracy)}</Text>
                       </Group>
                     </Table.Td>
+                    <Table.Td>{formatMetric(row.winkler_score)}</Table.Td>
                     <Table.Td className="score-column">
                       {row.prediction_count.toLocaleString()}
                     </Table.Td>
