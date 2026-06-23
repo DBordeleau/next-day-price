@@ -39,6 +39,28 @@ class CliSmokeTest(unittest.TestCase):
             self.assertEqual(main(["train-predict"]), 0)
         run_predict.assert_called_once_with()
 
+    def test_ingest_prices_alias_runs_backfill(self) -> None:
+        with patch("pipeline.cli.run_backfill", return_value=0) as run_backfill:
+            self.assertEqual(main(["ingest-prices", "--start", "2020-01-01"]), 0)
+        run_backfill.assert_called_once_with("2020-01-01", None)
+
+    def test_export_snapshots_alias_runs_snapshot_export(self) -> None:
+        with patch("pipeline.cli.run_export_snapshot", return_value=0) as run_export:
+            self.assertEqual(main(["export-snapshots"]), 0)
+        run_export.assert_called_once_with()
+
+    def test_benchmark_runtime_command_writes_report(self) -> None:
+        with patch("pipeline.cli.run_benchmark_runtime", return_value=0) as run_benchmark:
+            self.assertEqual(main(["benchmark-runtime", "--simple-tickers", "2"]), 0)
+        run_benchmark.assert_called_once_with(
+            output_path="data_exports/runtime_benchmark.json",
+            simple_ticker_count=2,
+            adapter_ticker_count=3,
+            price_days=760,
+            include_timesfm=False,
+            include_chronos=False,
+        )
+
     def test_run_daily_uses_full_horizon_pipeline_order(self) -> None:
         calls: list[str] = []
 
