@@ -5,6 +5,14 @@ import logging
 import sys
 from typing import Any
 
+from pipeline.benchmarking.runtime import (
+    DEFAULT_ADAPTER_TICKERS,
+    DEFAULT_PRICE_DAYS,
+    DEFAULT_RUNTIME_BENCHMARK_PATH,
+    DEFAULT_SIMPLE_TICKERS,
+    run_runtime_benchmark,
+    write_runtime_benchmark,
+)
 from pipeline.config import load_settings
 from pipeline.dashboard.refresh import build_dashboard_tables
 from pipeline.dashboard.snapshot_export import export_dashboard_snapshots
@@ -36,6 +44,17 @@ def build_parser() -> argparse.ArgumentParser:
     backfill.add_argument("--start", default=None, help="Start date in YYYY-MM-DD format.")
     backfill.add_argument("--end", default=None, help="Optional end date in YYYY-MM-DD format.")
 
+    ingest_prices = subparsers.add_parser(
+        "ingest-prices",
+        help="Alias for backfill; ingest historical OHLCV data.",
+    )
+    ingest_prices.add_argument("--start", default=None, help="Start date in YYYY-MM-DD format.")
+    ingest_prices.add_argument(
+        "--end",
+        default=None,
+        help="Optional end date in YYYY-MM-DD format.",
+    )
+
     fundamentals = subparsers.add_parser(
         "ingest-fundamentals",
         help="Fetch and upsert cached yfinance fundamentals.",
@@ -55,6 +74,18 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers.add_parser("score", help="Score matured predictions.")
     subparsers.add_parser("refresh-dashboard", help="Refresh dashboard tables.")
     subparsers.add_parser("export-snapshot", help="Export dashboard JSON snapshots.")
+    subparsers.add_parser("export-snapshots", help="Alias for export-snapshot.")
+
+    benchmark = subparsers.add_parser(
+        "benchmark-runtime",
+        help="Run local runtime benchmarks for simple and optional heavy models.",
+    )
+    benchmark.add_argument("--output", default=DEFAULT_RUNTIME_BENCHMARK_PATH)
+    benchmark.add_argument("--simple-tickers", type=int, default=DEFAULT_SIMPLE_TICKERS)
+    benchmark.add_argument("--adapter-tickers", type=int, default=DEFAULT_ADAPTER_TICKERS)
+    benchmark.add_argument("--price-days", type=int, default=DEFAULT_PRICE_DAYS)
+    benchmark.add_argument("--include-timesfm", action="store_true")
+    benchmark.add_argument("--include-chronos", action="store_true")
 
     return parser
 
@@ -81,7 +112,7 @@ def main(argv: list[str] | None = None) -> int:
         parser.print_help()
         return 0
 
-    if args.command == "backfill":
+    if args.command in {"backfill", "ingest-prices"}:
         start = args.start or load_settings().start_date
         return run_backfill(start, args.end)
 
@@ -102,8 +133,18 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "refresh-dashboard":
         return run_refresh_dashboard()
 
-    if args.command == "export-snapshot":
+    if args.command in {"export-snapshot", "export-snapshots"}:
         return run_export_snapshot()
+
+    if args.command == "benchmark-runtime":
+        return run_benchmark_runtime(
+            output_path=args.output,
+            simple_ticker_count=args.simple_tickers,
+            adapter_ticker_count=args.adapter_tickers,
+            price_days=args.price_days,
+            include_timesfm=args.include_timesfm,
+            include_chronos=args.include_chronos,
+        )
 
     if args.command == "run-daily":
         settings = load_settings()
@@ -320,6 +361,41 @@ def run_export_snapshot() -> int:
     for filename, count in counts.items():
         LOGGER.info("Exported %s with %s rows.", filename, count)
 
+    return 0
+
+
+def run_benchmark_runtime(
+    *,
+    output_path: str = DEFAULT_RUNTIME_BENCHMARK_PATH,
+    simple_ticker_count: int = DEFAULT_SIMPLE_TICKERS,
+    adapter_ticker_count: int = DEFAULT_ADAPTER_TICKERS,
+    price_days: int = DEFAULT_PRICE_DAYS,
+    include_timesfm: bool = False,
+    include_chronos: bool = False,
+) -> int:
+    settings = load_settings()
+    report = run_runtime_benchmark(
+        settings=settings,
+        simple_ticker_count=simple_ticker_count,
+        adapter_ticker_count=adapter_ticker_count,
+        price_days=price_days,
+        include_timesfm=include_timesfm,
+        include_chronos=include_chronos,
+    )
+    path = write_runtime_benchmark(report, output_path)
+    LOGGER.info("Runtime benchmark report written to %s.", path)
+
+    for benchmark in report["benchmarks"]:
+        LOGGER.info(
+            "%s: %s, cold=%s, warm=%s, predictions=%s",
+            benchmark["name"],
+            benchmark["status"],
+            benchmark["cold_seconds"],
+            benchmark["warm_seconds"],
+            benchmark["prediction_count"],
+        )
+
+    LOGGER.info("Automation recommendation: %s", report["automation_recommendation"])
     return 0
 
 
