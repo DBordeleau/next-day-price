@@ -1,5 +1,6 @@
 import { Badge, Card, Group, Skeleton, Table, Text, Title } from "@mantine/core";
 import { useParams } from "react-router-dom";
+import type { MetricHorizon } from "../api/dashboardData";
 import WarrenBuffbotPanel from "../components/buffbot/WarrenBuffbotPanel";
 import AnimatedSection from "../components/layout/AnimatedSection";
 import BackToDashboardButton from "../components/layout/BackToDashboardButton";
@@ -7,31 +8,25 @@ import DashboardFooter from "../components/layout/DashboardFooter";
 import SectionPanel from "../components/layout/SectionPanel";
 import PredictionTable from "../components/predictions/PredictionTable";
 import { useDashboardData } from "../hooks/useDashboardData";
-import { formatMetric, formatPercent } from "../utils/format";
+import { formatHorizon, formatMetric, formatPercent } from "../utils/format";
 import { getModelInfo, modelTypeColor } from "../utils/models";
 
-const windowLabels = {
-  "7d": "1W",
-  "30d": "1M",
-  "90d": "3M",
-  all: "ALL",
-};
-
-const windowOrder = {
-  "7d": 0,
-  "30d": 1,
-  "90d": 2,
-  all: 3,
+const horizonOrder: Record<MetricHorizon, number> = {
+  all: 0,
+  "1w": 1,
+  "1m": 2,
+  "3m": 3,
+  "1y": 4,
 };
 
 export default function ModelDetail() {
   const { modelSlug = "" } = useParams();
   const dashboard = useDashboardData();
   const latestForModel = dashboard.latestPredictions.filter((row) => row.model_slug === modelSlug);
-  const leaderboardForModel = dashboard.leaderboard
-    .filter((row) => row.model_slug === modelSlug && row.prediction_horizon === "all")
-    .sort((a, b) => windowOrder[a.window] - windowOrder[b.window]);
-  const modelName = latestForModel[0]?.model_name ?? leaderboardForModel[0]?.model_name;
+  const horizonMetricsForModel = dashboard.leaderboard
+    .filter((row) => row.model_slug === modelSlug && row.window === "all")
+    .sort((a, b) => horizonOrder[a.prediction_horizon] - horizonOrder[b.prediction_horizon]);
+  const modelName = latestForModel[0]?.model_name ?? horizonMetricsForModel[0]?.model_name;
   const info = getModelInfo(modelSlug, modelName);
   const latestBuffbot = modelSlug === "warren-buffbot" ? latestForModel[0] : undefined;
 
@@ -68,19 +63,19 @@ export default function ModelDetail() {
       </AnimatedSection>
 
       <AnimatedSection delay={modelSlug === "warren-buffbot" ? 0.24 : 0.16}>
-        <SectionPanel title="Metrics By Window" subtitle="Same model across scoring windows.">
+        <SectionPanel title="Metrics By Horizon" subtitle="Same model across prediction horizons.">
           {dashboard.loading ? (
             <Skeleton height={180} radius="sm" />
-          ) : leaderboardForModel.length === 0 ? (
+          ) : horizonMetricsForModel.length === 0 ? (
             <Text c="dimmed" size="sm">
               This model does not have scored leaderboard rows yet.
             </Text>
           ) : (
-            <Table.ScrollContainer minWidth={420}>
+            <Table.ScrollContainer minWidth={520}>
               <Table verticalSpacing="sm" className="model-metrics-table">
                 <Table.Thead>
                   <Table.Tr>
-                    <Table.Th>Window</Table.Th>
+                    <Table.Th>Horizon</Table.Th>
                     <Table.Th>Rank</Table.Th>
                     <Table.Th>MAE</Table.Th>
                     <Table.Th>Directional</Table.Th>
@@ -89,9 +84,9 @@ export default function ModelDetail() {
                   </Table.Tr>
                 </Table.Thead>
                 <Table.Tbody>
-                  {leaderboardForModel.map((row) => (
-                    <Table.Tr key={row.window}>
-                      <Table.Td>{windowLabels[row.window]}</Table.Td>
+                  {horizonMetricsForModel.map((row) => (
+                    <Table.Tr key={row.prediction_horizon}>
+                      <Table.Td>{formatHorizon(row.prediction_horizon)}</Table.Td>
                       <Table.Td>{row.rank ? `#${row.rank}` : "Pending"}</Table.Td>
                       <Table.Td>{formatMetric(row.mae)}</Table.Td>
                       <Table.Td>{formatPercent(row.directional_accuracy)}</Table.Td>
