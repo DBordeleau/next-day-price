@@ -4,46 +4,51 @@ import type { MetricHorizon } from "../../api/dashboardData";
 type Props = {
   value: MetricHorizon;
   onChange: (horizon: MetricHorizon) => void;
+  label?: string;
 };
 
 const options: { label: string; value: MetricHorizon; description: string }[] = [
   {
     label: "ALL",
     value: "all",
-    description: "View the leaderboard with every prediction horizon pooled together.",
+    description: "Show predictions across every horizon.",
   },
   {
     label: "1W",
     value: "1w",
-    description: "View the leaderboard for predictions made 1 week in advance.",
+    description: "Show predictions made 1 week in advance.",
   },
   {
     label: "1M",
     value: "1m",
-    description: "View the leaderboard for predictions made 1 month in advance.",
+    description: "Show predictions made 1 month in advance.",
   },
   {
     label: "3M",
     value: "3m",
-    description: "View the leaderboard for predictions made 3 months in advance.",
+    description: "Show predictions made 3 months in advance.",
   },
   {
     label: "1Y",
     value: "1y",
-    description: "View the leaderboard for predictions made 1 year in advance.",
+    description: "Show predictions made 1 year in advance.",
   },
 ];
 
-export default function HorizonSelector({ value, onChange }: Props) {
+export default function PredictionHorizonSelector({
+  value,
+  onChange,
+  label = "Prediction horizon",
+}: Props) {
   return (
-    <div className="horizon-selector-wrap" aria-label="Leaderboard prediction horizon">
+    <div className="prediction-horizon-selector" aria-label={label}>
       <SegmentedControl
-        className="horizon-selector"
+        size="xs"
         data={options.map((option) => ({
           value: option.value,
           label: (
             <Tooltip label={option.description} openDelay={250}>
-              <span className="horizon-selector-label">{option.label}</span>
+              <span>{option.label}</span>
             </Tooltip>
           ),
         }))}
