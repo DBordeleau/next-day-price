@@ -2,6 +2,7 @@ import { Text, Title } from "@mantine/core";
 import { motion } from "framer-motion";
 import { useEffect, useMemo, useState } from "react";
 import type { LatestPrediction } from "../../api/dashboardData";
+import { formatDate, formatHorizon } from "../../utils/format";
 import WarrenBuffbotHead from "./WarrenBuffbotHead";
 
 type Props = {
@@ -13,6 +14,9 @@ export default function WarrenBuffbotPanel({ latestPrediction }: Props) {
   const provider = typeof metadata.provider === "string" ? metadata.provider : null;
   const model = typeof metadata.model === "string" ? metadata.model : null;
   const reasoning = latestPrediction?.reasoning_summary?.trim() || "No prediction has been made.";
+  const predictionContext = latestPrediction
+    ? `${formatHorizon(latestPrediction.prediction_horizon)} prediction for ${latestPrediction.ticker} targeting ${formatDate(latestPrediction.target_date)}`
+    : null;
   const typedReasoning = useTypedText(reasoning);
 
   return (
@@ -29,6 +33,11 @@ export default function WarrenBuffbotPanel({ latestPrediction }: Props) {
         <Title order={2} className="speech-bubble-title">
           Warren Buffbot
         </Title>
+        {predictionContext ? (
+          <Text size="xs" fw={800} tt="uppercase" className="speech-bubble-context">
+            {predictionContext}
+          </Text>
+        ) : null}
         <Text className="speech-bubble-text" mt={4} aria-label={reasoning}>
           <span className="speech-text-measure">
             {reasoning}

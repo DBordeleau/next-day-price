@@ -18,6 +18,7 @@ type DashboardState = DashboardData & {
 
 const emptyData: DashboardData = {
   leaderboard: [],
+  modelMetrics: [],
   latestPredictions: [],
   tickerHistory: [],
   metadata: null,
