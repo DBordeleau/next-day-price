@@ -118,16 +118,20 @@ REACT_APP_SUPABASE_PUBLISHABLE_KEY=...
 ```bash
 python -m pipeline.cli --help
 python -m pipeline.cli backfill --start 2020-01-01
+python -m pipeline.cli ingest-prices --start 2020-01-01
 python -m pipeline.cli ingest-fundamentals
 python -m pipeline.cli build-features
 python -m pipeline.cli predict-horizons
 python -m pipeline.cli score
 python -m pipeline.cli refresh-dashboard
 python -m pipeline.cli export-snapshot
+python -m pipeline.cli export-snapshots
 python -m pipeline.cli run-daily
 ```
 
 `run-daily` performs the normal end-to-end flow: ingest prices, ingest fundamentals, build features, score matured predictions, generate predictions, refresh dashboard tables, and export snapshots.
+
+The command writes `data_exports/runtime_benchmark.json` with cold/warm timings, prediction counts, approximate Python allocation/RSS data, Hugging Face cache size when available, and an automation recommendation.
 
 ## Frontend
 
