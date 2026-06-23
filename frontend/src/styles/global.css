@@ -368,6 +368,7 @@ h2,
 
 .dashboard-grid {
   margin-top: 16px;
+  margin-bottom: 16px;
   width: 100%;
   grid-template-columns: minmax(0, 1.12fr) minmax(0, 0.88fr);
   align-items: start;
@@ -750,6 +751,26 @@ h2,
   justify-content: flex-end;
 }
 
+.prediction-controls {
+  align-items: center;
+}
+
+.prediction-horizon-selector .mantine-SegmentedControl-root {
+  border: 1px solid rgba(74, 222, 128, 0.24);
+  background: rgba(8, 13, 11, 0.42);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.prediction-horizon-selector .mantine-SegmentedControl-label {
+  color: #dbe6df;
+  font-weight: 800;
+}
+
+.prediction-horizon-selector .mantine-SegmentedControl-label[data-active] {
+  color: #ffffff;
+}
+
 .prediction-card-list {
   display: grid;
   gap: 10px;
@@ -773,6 +794,61 @@ h2,
 .prediction-card-model {
   display: block;
   color: #dbe6df;
+}
+
+.prediction-value {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.prediction-value-right {
+  text-align: right;
+}
+
+.prediction-value-center {
+  justify-items: center;
+  text-align: center;
+}
+
+.prediction-price {
+  color: #ffffff;
+  font-size: clamp(1.04rem, 1.1vw, 1.22rem);
+  font-weight: 850;
+  line-height: 1.08;
+}
+
+.prediction-return {
+  font-size: 0.82em;
+  font-weight: 850;
+}
+
+.prediction-return-up {
+  color: #86efac;
+}
+
+.prediction-return-down {
+  color: #fca5a5;
+}
+
+.prediction-ci-line {
+  color: #dbe6df;
+  font-weight: 720;
+  white-space: nowrap;
+}
+
+.prediction-ci-low {
+  color: #fca5a5;
+}
+
+.prediction-ci-separator {
+  display: inline-block;
+  margin: 0 4px;
+  color: #a8b6af;
+}
+
+.prediction-ci-high {
+  color: #86efac;
 }
 
 .mobile-cards {
@@ -837,6 +913,11 @@ h2,
   font-size: clamp(1.05rem, 1.6vw, 1.3rem);
 }
 
+.speech-bubble-context {
+  color: #166534 !important;
+  letter-spacing: 0.02em;
+}
+
 .speech-bubble-text {
   position: relative;
   font-size: clamp(1rem, 1.4vw, 1.15rem);
@@ -894,6 +975,13 @@ h2,
 .mantine-Table-th span {
   font-size: inherit !important;
   font-weight: inherit;
+}
+
+.metric-header-tooltip {
+  display: inline-flex;
+  cursor: help;
+  border-bottom: 1px dotted rgba(134, 239, 172, 0.62);
+  line-height: 1.15;
 }
 
 .mantine-Input-input {
@@ -1079,6 +1167,27 @@ h2,
   text-align: center;
 }
 
+.prediction-table-center {
+  text-align: center;
+}
+
+.prediction-table-center .sort-button {
+  justify-content: center;
+  width: 100%;
+}
+
+.prediction-table .mantine-Table-td {
+  font-size: clamp(0.98rem, 0.78vw, 1.12rem);
+}
+
+.prediction-table .mantine-Table-td:nth-child(4) {
+  font-size: inherit;
+}
+
+.prediction-table .mantine-Badge-label {
+  font-size: clamp(0.78rem, 0.58vw, 0.9rem);
+}
+
 .model-metrics-table {
   width: 100%;
   min-width: 0;
@@ -1135,6 +1244,19 @@ h2,
   .prediction-filters {
     width: 100%;
     justify-content: stretch;
+  }
+
+  .prediction-controls {
+    width: 100%;
+    justify-content: stretch;
+  }
+
+  .prediction-horizon-selector {
+    width: 100%;
+  }
+
+  .prediction-horizon-selector .mantine-SegmentedControl-root {
+    width: 100%;
   }
 
   .prediction-filters>* {
