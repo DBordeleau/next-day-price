@@ -9,7 +9,6 @@ export default function DashboardHeader() {
 
   return (
     <header className="dashboard-header hero-header">
-      <p className="hero-eyebrow">Multi-Horizon Market Predictions</p>
       <h1 className="hero-title">
         <span className="hero-title-text">Ticker </span><span className="accent">Wars</span>
       </h1>
