@@ -109,7 +109,7 @@ export default function Onboarding() {
         color: "green",
         icon: <FiCheck />,
         title: "Profile saved",
-        message: "Your human contender profile is ready.",
+        message: "Profile saved.",
       });
       const nextPath = (location.state as { from?: string } | null)?.from ?? "/";
       navigate(nextPath === "/onboarding" ? "/" : nextPath, { replace: true });
