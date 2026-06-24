@@ -1,5 +1,6 @@
 import { Button, Tooltip } from "@mantine/core";
-import { motion } from "framer-motion";
+import { useMediaQuery } from "@mantine/hooks";
+import { AnimatePresence as FramerAnimatePresence, motion, useScroll, useSpring, useTransform } from "framer-motion";
 import type { ReactNode } from "react";
 import { useState } from "react";
 import { FiEdit3, FiList, FiLogIn, FiLogOut, FiTarget, FiUser } from "react-icons/fi";
@@ -9,11 +10,18 @@ import { useAuth } from "../../auth/AuthProvider";
 import AvatarImage from "./AvatarImage";
 import SignInModal from "./SignInModal";
 
+const AnimatePresence = FramerAnimatePresence as unknown as (props: { children: ReactNode }) => JSX.Element;
+
 export default function UserControl() {
   const { user, profile, loading, profileLoading } = useAuth();
   const [signInOpen, setSignInOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const navigate = useNavigate();
+  const compactMenu = useMediaQuery("(max-width: 520px)") ?? false;
+  const { scrollY } = useScroll();
+  const driftSource = useSpring(scrollY, { stiffness: 42, damping: 24, mass: 0.7 });
+  const driftX = useTransform(driftSource, (value) => Math.sin(value / 220) * 7);
+  const driftY = useTransform(driftSource, (value) => Math.cos(value / 180) * 8);
 
   if (!user) {
     return (
@@ -39,7 +47,7 @@ export default function UserControl() {
   };
 
   return (
-    <div className="user-control">
+    <motion.div className="user-control" style={{ x: driftX, y: driftY }}>
       <Tooltip label={profile ? profile.display_username : "Complete profile"}>
         <button
           type="button"
@@ -49,55 +57,85 @@ export default function UserControl() {
           disabled={profileLoading}
           onClick={() => setMenuOpen((current) => !current)}
         >
-          {profile ? <AvatarImage profile={profile} size={48} /> : <FiUser />}
+          {profile ? <AvatarImage profile={profile} size={56} /> : <FiUser />}
         </button>
       </Tooltip>
-      {menuOpen ? (
-        <motion.div
-          className="user-radial-menu"
-          initial={{ opacity: 0, scale: 0.92 }}
-          animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0, scale: 0.92 }}
-        >
-          <RadialItem icon={<FiTarget />} label="Make prediction" angle={-175} onClick={() => go("/")} />
-          <RadialItem icon={<FiList />} label="My predictions" angle={-145} onClick={() => go("/me/predictions")} />
-          <RadialItem icon={<FiEdit3 />} label="Edit profile" angle={-115} onClick={() => go("/me/profile")} />
-          <RadialItem
-            icon={<FiLogOut />}
-            label="Log out"
-            angle={-85}
-            onClick={() => {
-              setMenuOpen(false);
-              void signOut();
+      <AnimatePresence>
+        {menuOpen ? (
+          <motion.div
+            className="user-radial-menu"
+            initial="closed"
+            animate="open"
+            exit="closed"
+            variants={{
+              open: {
+                opacity: 1,
+                scale: 1,
+                transition: { staggerChildren: 0.045, delayChildren: 0.03 },
+              },
+              closed: {
+                opacity: 0,
+                scale: 0.92,
+                transition: { staggerChildren: 0.035, staggerDirection: -1, when: "afterChildren" },
+              },
             }}
-          />
-        </motion.div>
-      ) : null}
-    </div>
+          >
+            <RadialItem
+              icon={<FiLogOut />}
+              label="Log out"
+              x={compactMenu ? 0 : -180}
+              y={compactMenu ? -58 : -12}
+              onClick={() => {
+                setMenuOpen(false);
+                void signOut();
+              }}
+            />
+            <RadialItem
+              icon={<FiEdit3 />}
+              label="Edit profile"
+              x={compactMenu ? 0 : -160}
+              y={compactMenu ? -116 : -86}
+              onClick={() => go("/me/profile")}
+            />
+            <RadialItem
+              icon={<FiList />}
+              label="My predictions"
+              x={compactMenu ? 0 : -116}
+              y={compactMenu ? -174 : -154}
+              onClick={() => go("/me/predictions")}
+            />
+            <RadialItem
+              icon={<FiTarget />}
+              label="Make prediction"
+              x={compactMenu ? 0 : -36}
+              y={compactMenu ? -232 : -205}
+              onClick={() => go("/")}
+            />
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
+    </motion.div>
   );
 }
 
 type RadialItemProps = {
   icon: ReactNode;
   label: string;
-  angle: number;
+  x: number;
+  y: number;
   onClick: () => void;
 };
 
-function RadialItem({ icon, label, angle, onClick }: RadialItemProps) {
-  const radius = 96;
-  const radians = (angle * Math.PI) / 180;
-  const x = Math.cos(radians) * radius;
-  const y = Math.sin(radians) * radius;
-
+function RadialItem({ icon, label, x, y, onClick }: RadialItemProps) {
   return (
     <motion.button
       type="button"
       className="user-radial-item"
-      style={{ x, y }}
-      initial={{ x: 0, y: 0, opacity: 0 }}
-      animate={{ x, y, opacity: 1 }}
-      transition={{ type: "spring", stiffness: 260, damping: 20 }}
+      variants={{
+        open: { x, y, opacity: 1, scale: 1 },
+        closed: { x: 0, y: 0, opacity: 0, scale: 0.86 },
+      }}
+      transition={{ type: "spring", stiffness: 240, damping: 22 }}
       onClick={onClick}
     >
       <span className="user-radial-icon">{icon}</span>
