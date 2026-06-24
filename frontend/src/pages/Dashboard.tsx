@@ -124,6 +124,7 @@ export default function Dashboard() {
                         loading={dashboard.loading}
                         view={latestPredictionsView}
                         onViewChange={setLatestPredictionsView}
+                        onPredictionSaved={() => void dashboard.refetch()}
                         embedded
                       />
                     ) : (

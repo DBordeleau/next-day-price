@@ -105,7 +105,11 @@ export default function ModelDetail() {
       </AnimatedSection>
 
       <AnimatedSection delay={modelSlug === "warren-buffbot" ? 0.32 : 0.24}>
-        <PredictionTable rows={latestForModel} loading={dashboard.loading} />
+        <PredictionTable
+          rows={latestForModel}
+          loading={dashboard.loading}
+          onPredictionSaved={() => void dashboard.refetch()}
+        />
       </AnimatedSection>
 
       <AnimatedSection delay={modelSlug === "warren-buffbot" ? 0.4 : 0.32}>

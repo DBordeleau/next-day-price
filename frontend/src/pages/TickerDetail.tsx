@@ -56,7 +56,11 @@ export default function TickerDetail() {
                 <Text className="eyebrow">Ticker Detail</Text>
                 <Group justify="space-between" align="center" gap="md">
                   <Title order={1}>{ticker}</Title>
-                  <UserPredictionButton ticker={ticker} latestPredictions={dashboard.latestPredictions} />
+                  <UserPredictionButton
+                    ticker={ticker}
+                    latestPredictions={dashboard.latestPredictions}
+                    onSaved={() => void dashboard.refetch()}
+                  />
                 </Group>
                 <Group mt="md" gap="lg">
                   <div>
@@ -128,6 +132,7 @@ export default function TickerDetail() {
             view={latestPredictionsView}
             onViewChange={setLatestPredictionsView}
             showTickerFilter={false}
+            onPredictionSaved={() => void dashboard.refetch()}
           />
         ) : (
           <UserPredictionTable

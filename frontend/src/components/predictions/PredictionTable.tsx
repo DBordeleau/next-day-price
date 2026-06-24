@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { FiArrowDown, FiArrowUp, FiChevronDown } from "react-icons/fi";
 import { Link } from "react-router-dom";
 import type { LatestPrediction, MetricHorizon } from "../../api/dashboardData";
+import type { UserPrediction } from "../../api/userPredictions";
 import type { DashboardView } from "../dashboard/DashboardViewToggle";
 import DashboardViewToggle from "../dashboard/DashboardViewToggle";
 import {
@@ -29,6 +30,7 @@ type Props = {
   onViewChange?: (view: DashboardView) => void;
   showTickerFilter?: boolean;
   embedded?: boolean;
+  onPredictionSaved?: (prediction: UserPrediction) => void;
 };
 
 const predictionPreviewSize = 5;
@@ -42,6 +44,7 @@ export default function PredictionTable({
   onViewChange,
   showTickerFilter = true,
   embedded = false,
+  onPredictionSaved,
 }: Props) {
   const [tickerQuery, setTickerQuery] = useState("");
   const [model, setModel] = useState<string | null>(null);
@@ -222,7 +225,12 @@ export default function PredictionTable({
               {displayedRows.map((row) => (
                 <Table.Tr key={row.prediction_id}>
                   <Table.Td className="prediction-row-action-cell">
-                    <UserPredictionButton ticker={row.ticker} latestPredictions={rows} compact />
+                    <UserPredictionButton
+                      ticker={row.ticker}
+                      latestPredictions={rows}
+                      compact
+                      onSaved={onPredictionSaved}
+                    />
                   </Table.Td>
                   <Table.Td>
                     <Text component={Link} to={`/tickers/${row.ticker}`} fw={800} className="plain-link">
@@ -254,7 +262,11 @@ export default function PredictionTable({
         </Table.ScrollContainer>
       </div>
       <div className="mobile-cards">
-        <PredictionCardList rows={displayedRows} />
+        <PredictionCardList
+          rows={displayedRows}
+          latestPredictions={rows}
+          onPredictionSaved={onPredictionSaved}
+        />
       </div>
       {!isPaged && visibleRows.length > predictionPreviewSize ? (
         <Group justify="center">
