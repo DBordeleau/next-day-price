@@ -1,6 +1,7 @@
 import { Badge, Group, Text } from "@mantine/core";
 import { Link } from "react-router-dom";
 import type { LatestPrediction } from "../../api/dashboardData";
+import type { UserPrediction } from "../../api/userPredictions";
 import {
   formatCurrency,
   formatDate,
@@ -11,9 +12,15 @@ import UserPredictionButton from "./UserPredictionButton";
 
 type Props = {
   rows: LatestPrediction[];
+  latestPredictions?: LatestPrediction[];
+  onPredictionSaved?: (prediction: UserPrediction) => void;
 };
 
-export default function PredictionCardList({ rows }: Props) {
+export default function PredictionCardList({
+  rows,
+  latestPredictions = rows,
+  onPredictionSaved,
+}: Props) {
   return (
     <div className="prediction-card-list">
       {rows.map((row) => (
@@ -56,7 +63,12 @@ export default function PredictionCardList({ rows }: Props) {
             <Text size="sm">{formatDate(row.prediction_date)}</Text>
           </Group>
           <Group mt="sm" justify="flex-end">
-            <UserPredictionButton ticker={row.ticker} latestPredictions={rows} compact />
+            <UserPredictionButton
+              ticker={row.ticker}
+              latestPredictions={latestPredictions}
+              compact
+              onSaved={onPredictionSaved}
+            />
           </Group>
         </article>
       ))}
