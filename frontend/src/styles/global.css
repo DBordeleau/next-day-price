@@ -225,7 +225,7 @@ textarea {
 
 .hero-title {
   margin: 0;
-  font-size: clamp(2.7rem, 8vw, 5.75rem);
+  font-size: clamp(3rem, 8vw, 6rem);
   font-weight: 850;
   line-height: 1.08;
   letter-spacing: -0.03em;
