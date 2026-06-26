@@ -5,34 +5,53 @@ export type ModelInfo = {
   name: string;
   type: ModelType;
   description: string;
+  learnMore?: string;
 };
 
-export type ModelType = "Benchmark" | "Classic ML" | "Time Series" | "Toy LLM";
+export type ModelType = "Benchmark" | "Machine Learning" | "Foundation Model" | "Toy (LLM)";
 
 const descriptions: Record<string, Omit<ModelInfo, "slug" | "name">> = {
   baseline: {
     type: "Benchmark",
-    description: "Naive baseline model that always predicts zero return for the selected horizon.",
+    description:
+      "The simplest possible forecasting model. It assumes the price will remain unchanged over the selected prediction horizon. While intentionally naive, it provides an essential benchmark that every other model should strive to outperform.",
+    learnMore: "https://otexts.com/fpp3/accuracy.html",
   },
+
   "linear-regression": {
-    type: "Classic ML",
-    description: "Fits a simple linear relationship between engineered market features and horizon-specific returns.",
+    type: "Machine Learning",
+    description:
+      "A classic statistical model that learns a weighted relationship between historical market features and future returns. Fast, highly interpretable, and often surprisingly competitive, it serves as a strong baseline for more sophisticated machine learning models.",
+    learnMore:
+      "https://scikit-learn.org/stable/modules/linear_model.html#ordinary-least-squares",
   },
+
   "random-forest": {
-    type: "Classic ML",
-    description: "Compares the linear models against a small nonlinear tree ensemble.",
+    type: "Machine Learning",
+    description:
+      "An ensemble of decision trees that combines hundreds of independent predictions into a single forecast. By averaging many trees, Random Forest can capture nonlinear market relationships while reducing overfitting compared to an individual decision tree.",
+    learnMore:
+      "https://scikit-learn.org/stable/modules/ensemble.html#forest",
   },
+
   timesfm: {
-    type: "Time Series",
-    description: "Uses Google's pretrained TimesFM time-series model to produce horizon-specific price paths and intervals.",
+    type: "Foundation Model",
+    description:
+      "Google's pretrained Time Series Foundation Model. Instead of being trained specifically on stock prices, TimesFM has learned forecasting patterns from millions of real-world time series, allowing it to generate forecasts for new datasets without additional training.",
+    learnMore: "https://github.com/google-research/timesfm",
   },
+
   "chronos-2": {
-    type: "Time Series",
-    description: "Uses Amazon Chronos-2, a pretrained time-series foundation model, for zero-shot horizon predictions.",
+    type: "Foundation Model",
+    description:
+      "Amazon's next-generation transformer-based forecasting model. Chronos-2 uses in-context learning to generate zero-shot forecasts from historical data, enabling accurate predictions across many different types of time series without retraining.",
+    learnMore: "https://github.com/amazon-science/chronos-forecasting",
   },
+
   "warren-buffbot": {
-    type: "Toy LLM",
-    description: "An LLM instructed to make predictions using value-oriented investment principles.",
+    type: "Toy (LLM)",
+    description:
+      "A large language model prompted to think like a value investor inspired by Warren Buffett. Rather than using traditional forecasting algorithms, Buffbot analyzes historical market data through natural language reasoning to produce its own prediction.",
   },
 };
 
@@ -49,24 +68,37 @@ export function getModelInfo(slug: string, fallbackName?: string): ModelInfo {
   };
 }
 
+// Maps both the new frontend vocabulary and the legacy pipeline/database
+// vocabulary (registry.py emits "Classic ML" / "Time Series" / "Toy LLM" /
+// "Benchmark") onto the current ModelType enum. Without this, legacy values fall
+// through to the default and every model renders a "Machine Learning" badge.
+const modelTypeAliases: Record<string, ModelType> = {
+  benchmark: "Benchmark",
+  baseline: "Benchmark",
+  "machine learning": "Machine Learning",
+  "classic ml": "Machine Learning",
+  "foundation model": "Foundation Model",
+  "time series": "Foundation Model",
+  "toy (llm)": "Toy (LLM)",
+  "toy llm": "Toy (LLM)",
+};
+
 export function normalizeModelType(value?: string): ModelType {
-  if (value === "Benchmark" || value === "Classic ML" || value === "Time Series" || value === "Toy LLM") {
-    return value;
-  }
-  return "Classic ML";
+  const mapped = value ? modelTypeAliases[value.trim().toLowerCase()] : undefined;
+  return mapped ?? "Machine Learning";
 }
 
 export function modelTypeColor(type: ModelType) {
   if (type === "Benchmark") {
-    return "gray";
+    return "black";
   }
-  if (type === "Toy LLM") {
-    return "yellow";
+  if (type === "Toy (LLM)") {
+    return "orange";
   }
-  if (type === "Time Series") {
+  if (type === "Foundation Model") {
     return "teal";
   }
-  return "green";
+  return "gray";
 }
 
 export function getModelNames(
