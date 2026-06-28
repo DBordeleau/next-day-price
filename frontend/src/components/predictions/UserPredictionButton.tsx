@@ -1,11 +1,13 @@
 import { Button, Drawer, Modal, Popover } from "@mantine/core";
 import { useDisclosure, useMediaQuery } from "@mantine/hooks";
 import { motion } from "framer-motion";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { FiTarget } from "react-icons/fi";
+import { FiEdit3, FiTarget } from "react-icons/fi";
 import type { LatestPrediction } from "../../api/dashboardData";
 import type { UserPrediction } from "../../api/userPredictions";
 import { useAuth } from "../../auth/AuthProvider";
+import MagicHoverSurface from "../layout/MagicHoverSurface";
 import SignInModal from "../users/SignInModal";
 import UserPredictionForm from "./UserPredictionForm";
 
@@ -17,6 +19,11 @@ type Props = {
   onSaved?: (prediction: UserPrediction) => void;
 };
 
+// Only one prediction popover/modal may be open at a time across the page.
+// Opening a new one closes whichever was previously open (module-level so every
+// UserPredictionButton instance shares it).
+let activePredictionClose: (() => void) | null = null;
+
 export default function UserPredictionButton({
   ticker,
   latestPredictions,
@@ -27,8 +34,30 @@ export default function UserPredictionButton({
   const { user, profile } = useAuth();
   const [opened, handlers] = useDisclosure(false);
   const [signInOpen, signInHandlers] = useDisclosure(false);
+  // Gates the popover's top/left transition: enabled a beat after open so the
+  // initial placement does not slide in from the corner.
+  const [repositionReady, setRepositionReady] = useState(false);
   const isMobile = useMediaQuery("(max-width: 760px)");
   const navigate = useNavigate();
+
+  // Enforce single-open across instances, and arm the reposition easing.
+  useEffect(() => {
+    if (!opened) {
+      setRepositionReady(false);
+      return;
+    }
+    if (activePredictionClose && activePredictionClose !== handlers.close) {
+      activePredictionClose();
+    }
+    activePredictionClose = handlers.close;
+    const armId = window.setTimeout(() => setRepositionReady(true), 220);
+    return () => {
+      window.clearTimeout(armId);
+      if (activePredictionClose === handlers.close) {
+        activePredictionClose = null;
+      }
+    };
+  }, [opened, handlers.close]);
 
   const handleOpen = () => {
     if (!user) {
@@ -42,11 +71,16 @@ export default function UserPredictionButton({
     handlers.open();
   };
 
+  // Only the desktop popover is click-outside dismissable; there the horizon
+  // Select must render in-place so choosing an option is not seen as an outside
+  // click. The modal and mobile drawer keep the portaled dropdown.
+  const horizonWithinPortal = Boolean(isMobile) || !compact;
   const form = (
     <UserPredictionForm
       ticker={ticker}
       latestPredictions={latestPredictions}
       existingPrediction={existingPrediction}
+      comboboxWithinPortal={horizonWithinPortal}
       onSaved={(prediction) => {
         handlers.close();
         onSaved?.(prediction);
@@ -54,9 +88,17 @@ export default function UserPredictionButton({
       onCancel={handlers.close}
     />
   );
+  // Desktop popover/modal share a glass card that reacts to the cursor spotlight
+  // (the Mantine chrome is reset to transparent; this owns the border ring).
+  const spotlightForm = (
+    <MagicHoverSurface className="prediction-magic-surface">
+      <div className="prediction-surface-card">{form}</div>
+    </MagicHoverSurface>
+  );
   const controlClassName = `spotlight-control-wrap predict-control-wrap${compact ? " predict-control-compact" : ""}`;
   const buttonClassName = "spotlight-control-button predict-control-button";
   const buttonLabel = existingPrediction ? "Edit" : "Predict";
+  const ButtonIcon = existingPrediction ? FiEdit3 : FiTarget;
   const pressMotion = {
     scale: 0.965,
     y: 1,
@@ -86,13 +128,19 @@ export default function UserPredictionButton({
               className={buttonClassName}
               color="green"
               variant="subtle"
-              leftSection={<FiTarget />}
+              leftSection={<ButtonIcon />}
               onClick={handleOpen}
             >
               {buttonLabel}
             </Button>
           </motion.div>
-          <Drawer opened={opened} onClose={handlers.close} title={`${ticker} prediction`} position="bottom">
+          <Drawer
+            opened={opened}
+            onClose={handlers.close}
+            title={`${ticker} prediction`}
+            position="bottom"
+            className="prediction-drawer"
+          >
             {form}
           </Drawer>
         </>
@@ -101,12 +149,12 @@ export default function UserPredictionButton({
           opened={opened}
           onChange={(nextOpened) => (nextOpened ? handlers.open() : handlers.close())}
           position="bottom-end"
-          withArrow
-          shadow="xl"
+          shadow="none"
           trapFocus
           closeOnEscape
-          closeOnClickOutside={false}
+          closeOnClickOutside
           withinPortal
+          transitionProps={{ transition: "pop", duration: 190 }}
         >
           <Popover.Target>
             <motion.div
@@ -119,14 +167,18 @@ export default function UserPredictionButton({
                 className={buttonClassName}
                 color="green"
                 variant="subtle"
-                leftSection={<FiTarget />}
+                leftSection={<ButtonIcon />}
                 onClick={handleOpen}
               >
                 {buttonLabel}
               </Button>
             </motion.div>
           </Popover.Target>
-          <Popover.Dropdown className="user-prediction-popover">{form}</Popover.Dropdown>
+          <Popover.Dropdown
+            className={`prediction-pop-dropdown${repositionReady ? " prediction-pop-dropdown--anchored" : ""}`}
+          >
+            {spotlightForm}
+          </Popover.Dropdown>
         </Popover>
       ) : (
         <>
@@ -140,7 +192,7 @@ export default function UserPredictionButton({
               className={buttonClassName}
               color="green"
               variant="subtle"
-              leftSection={<FiTarget />}
+              leftSection={<ButtonIcon />}
               onClick={handleOpen}
             >
               {buttonLabel}
@@ -149,12 +201,14 @@ export default function UserPredictionButton({
           <Modal
             opened={opened}
             onClose={handlers.close}
-            title={`${ticker} prediction`}
             centered
+            withCloseButton={false}
+            padding={0}
             className="prediction-modal"
             overlayProps={{ backgroundOpacity: 0.48, blur: 8 }}
+            transitionProps={{ transition: "pop", duration: 190 }}
           >
-            {form}
+            {spotlightForm}
           </Modal>
         </>
       )}

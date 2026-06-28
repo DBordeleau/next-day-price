@@ -21,6 +21,10 @@ type Props = {
   existingPrediction?: UserPrediction | null;
   onSaved?: (prediction: UserPrediction) => void;
   onCancel?: () => void;
+  // When the form lives inside a click-outside-closable popover, the horizon
+  // Select must render in-place (not portaled to body) so picking an option does
+  // not register as a click outside the popover and dismiss it.
+  comboboxWithinPortal?: boolean;
 };
 
 export default function UserPredictionForm({
@@ -29,6 +33,7 @@ export default function UserPredictionForm({
   existingPrediction,
   onSaved,
   onCancel,
+  comboboxWithinPortal = true,
 }: Props) {
   const { user } = useAuth();
   const targets = useMemo(
@@ -135,7 +140,7 @@ export default function UserPredictionForm({
         <Select
           aria-label="Prediction horizon"
           value={horizon}
-          comboboxProps={{ withinPortal: true, zIndex: 420 }}
+          comboboxProps={{ withinPortal: comboboxWithinPortal, zIndex: 420 }}
           data={targets.map((target) => ({
             value: target.horizon,
             label: `${formatHorizon(target.horizon)} from today`,
