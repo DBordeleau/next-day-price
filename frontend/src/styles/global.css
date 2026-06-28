@@ -270,6 +270,16 @@ textarea {
   align-items: stretch;
 }
 
+/* Leave room at the top of the post-hero sections for the full-size docked
+   hero title. */
+.landing-section:not(.landing-hero-section) {
+  padding-top: 168px;
+}
+
+.landing-section--auto {
+  padding-bottom: 32px;
+}
+
 .landing-section-inner {
   width: min(1320px, calc(100% - 56px));
   margin: 0 auto;
@@ -355,6 +365,32 @@ textarea {
 
 .floating-compete-cta .hero-competition-cta {
   margin-top: 0;
+}
+
+/* Floating hero title: scrolls up from the hero and docks as a small top-center
+   header above the later sections. Always horizontally centered by the wrapper. */
+.floating-hero-title-wrap {
+  position: fixed;
+  top: 0;
+  left: 50%;
+  z-index: 90;
+  width: max-content;
+  max-width: 100vw;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.floating-hero-title {
+  margin: 0;
+  white-space: nowrap;
+  font-size: clamp(2.8rem, 6.2vw, 6rem);
+  will-change: transform;
+}
+
+@media (min-width: 1800px) {
+  .floating-hero-title {
+    font-size: 6.4rem;
+  }
 }
 
 /* Status strip ----------------------------------------------------------- */
@@ -1372,6 +1408,7 @@ h2,
 .spotlight-control-wrap::after,
 .prediction-filters .mantine-Input-wrapper::after,
 .chart-panel .mantine-Input-wrapper::after,
+.prediction-surface-card .mantine-Input-wrapper::after,
 .model-toggle::after {
   position: absolute;
   inset: 0;
@@ -1398,8 +1435,13 @@ h2,
   transition: opacity 170ms ease;
 }
 
+/* Action buttons (.spotlight-control-wrap: predict / load more / pagination)
+   glow only on their own hover — NOT on panel hover. Panel-hover glow plus the
+   table rows remounting on a horizon change made every freshly-mounted button
+   animate its border 0->1 under the hovered panel, which read as a flash. The
+   /tickers grid never had this because its predict buttons sit in per-card
+   surfaces rather than a .section-magic-surface. */
 .section-magic-surface:hover .horizon-selector-wrap::after,
-.section-magic-surface:hover .spotlight-control-wrap::after,
 .section-magic-surface:hover .prediction-filters .mantine-Input-wrapper::after,
 .section-magic-surface:hover .chart-panel .mantine-Input-wrapper::after,
 .section-magic-surface:hover .model-toggle::after,
@@ -3159,46 +3201,513 @@ h2,
   font-size: clamp(0.78rem, 0.58vw, 0.9rem);
 }
 
-.user-prediction-popover {
-  width: min(460px, calc(100vw - 32px));
-  border: 1px solid rgba(255, 255, 255, 0.22);
-  color: #ffffff;
-  background: rgba(8, 13, 11, 0.94);
-  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.36);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+/* ---------------------------------------------------------------------------
+   User prediction surfaces — the compact popover, the non-compact modal, and
+   the mobile drawer share one glassy card that reacts to the cursor spotlight
+   like the entity hover cards and section panels. The Mantine dropdown / modal
+   chrome is reset to transparent so the inner MagicHoverSurface owns the glow
+   and border ring; the card carries the glass tone and shadow.
+--------------------------------------------------------------------------- */
+.prediction-pop-dropdown {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  overflow: visible;
+}
+
+/* Once the popover has settled at its anchor, ease its top/left so scroll-driven
+   repositioning (flipping above/below the button) glides instead of snapping.
+   The class is added a beat after open so the initial placement does not slide in
+   from the corner; the entry pop (transform/opacity) is untouched. */
+.prediction-pop-dropdown--anchored {
+  transition:
+    top 280ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    left 280ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 .prediction-modal .mantine-Modal-content {
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  color: #ffffff;
-  background: rgba(8, 13, 11, 0.9);
-  box-shadow:
-    0 28px 70px rgba(0, 0, 0, 0.42),
-    inset 0 1px 0 rgba(255, 255, 255, 0.08);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
+  overflow: visible;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
-.prediction-modal .mantine-Modal-header {
+.prediction-modal .mantine-Modal-body {
+  padding: 0;
+}
+
+.prediction-magic-surface {
+  position: relative;
+  display: block;
+  border-radius: 12px;
+}
+
+.prediction-magic-surface::before {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  content: "";
+  border-radius: inherit;
+  background:
+    radial-gradient(340px circle at var(--magic-x) var(--magic-y),
+      rgba(74, 222, 128, 0.16),
+      rgba(34, 211, 238, 0.09) 36%,
+      transparent 68%);
+  pointer-events: none;
+}
+
+.prediction-magic-surface::after {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  content: "";
+  border-radius: inherit;
+  padding: 1px;
+  background:
+    radial-gradient(360px circle at var(--magic-x) var(--magic-y),
+      rgba(34, 211, 238, 0.98),
+      rgba(74, 222, 128, 0.9) 30%,
+      rgba(163, 230, 53, 0.45) 50%,
+      transparent 74%);
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+.prediction-surface-card {
+  position: relative;
+  z-index: 2;
+  width: min(520px, calc(100vw - 32px));
+  padding: 20px;
+  border: 1px solid rgba(187, 247, 208, 0.32);
+  border-radius: 12px;
   color: #ffffff;
-  background: transparent;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.035)),
+    rgba(7, 11, 10, 0.93);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    0 28px 70px rgba(0, 0, 0, 0.52);
+  backdrop-filter: blur(18px) saturate(1.3);
+  -webkit-backdrop-filter: blur(18px) saturate(1.3);
+}
+
+/* Mobile drawer keeps the native sliding panel but adopts the same glass tone;
+   the spotlight ring is a pointer affordance, so it is intentionally desktop-only. */
+.prediction-drawer .mantine-Drawer-content,
+.prediction-drawer .mantine-Drawer-header {
+  color: #ffffff;
+  background: rgba(8, 13, 11, 0.94);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
 }
 
 .user-prediction-form {
   min-width: 0;
 }
 
+/* Inner inputs pick up the cursor spotlight border ring while the surface is
+   hovered, matching the leaderboard / chart control treatment. */
+.prediction-surface-card .mantine-Input-wrapper {
+  --spotlight-child-x: 50%;
+  --spotlight-child-y: 50%;
+  position: relative;
+  overflow: hidden;
+  border-radius: 6px;
+}
+
+.prediction-surface-card .mantine-Input-input {
+  position: relative;
+  z-index: 1;
+  transition:
+    border-color 170ms ease,
+    box-shadow 170ms ease,
+    background-color 170ms ease;
+}
+
+.prediction-magic-surface:hover .prediction-surface-card .mantine-Input-wrapper::after {
+  opacity: 1;
+}
+
+.prediction-magic-surface:hover .prediction-surface-card .mantine-Input-input {
+  border-color: rgba(74, 222, 128, 0.26);
+}
+
 .prediction-sentence {
   display: grid;
-  grid-template-columns: auto minmax(118px, 1fr) minmax(160px, 1fr);
+  grid-template-columns: auto minmax(110px, 0.85fr) minmax(150px, 1fr);
   gap: 10px;
   align-items: center;
+}
+
+/* Keep the "I think TICKER will be" lead on a single line on desktop; the card is
+   wide enough to fit it beside the inputs. On mobile the grid collapses to one
+   column (below), where a single line still fits the full width. */
+.prediction-sentence>span {
+  white-space: nowrap;
 }
 
 .user-predictions-table .mantine-Table-th,
 .user-predictions-table .mantine-Table-td {
   white-space: nowrap;
+}
+
+/* ---------------------------------------------------------------------------
+   My Predictions page — clean header, track-record summary, and the active /
+   settled prediction panels. The tables ride on the shared .prediction-table
+   chrome (centered columns, row hover, action-cell shine) inside a
+   section-magic-surface so the Edit control's border reacts to the spotlight.
+--------------------------------------------------------------------------- */
+.predictions-header {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  padding: 6px 2px 2px;
+}
+
+.predictions-header-eyebrow {
+  color: #6ee7a8;
+  font-size: clamp(0.74rem, 1.4vw, 0.84rem);
+  font-weight: 750;
+  letter-spacing: 0.26em;
+  text-transform: uppercase;
+}
+
+.predictions-header-title.mantine-Title-root {
+  margin: 0;
+  font-size: clamp(2.1rem, 4.6vw, 3.3rem);
+  font-weight: 850;
+  line-height: 1.04;
+  letter-spacing: -0.02em;
+  color: #ffffff;
+}
+
+.predictions-header-lead {
+  max-width: 620px;
+  color: rgba(219, 230, 223, 0.78);
+  font-size: clamp(1rem, 1.1vw, 1.12rem);
+  line-height: 1.55;
+}
+
+.predictions-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.predictions-summary-stat {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 9px 16px;
+  border: 1px solid rgba(187, 247, 208, 0.22);
+  border-radius: 999px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.025)),
+    rgba(8, 13, 11, 0.5);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07);
+  backdrop-filter: blur(12px) saturate(1.2);
+  -webkit-backdrop-filter: blur(12px) saturate(1.2);
+}
+
+.predictions-summary-value {
+  color: #ffffff;
+  font-size: 1.06rem;
+  font-weight: 850;
+  font-variant-numeric: tabular-nums;
+}
+
+.predictions-summary-label {
+  color: rgba(219, 230, 223, 0.66);
+  font-size: 0.72rem;
+  font-weight: 750;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.my-predictions-panel .section-title {
+  font-size: clamp(1.18rem, 1.7vw, 1.5rem);
+}
+
+.prediction-count-badge {
+  flex: 0 0 auto;
+}
+
+.prediction-locked-badge {
+  font-weight: 800;
+}
+
+.prediction-inline-value {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.prediction-card-action {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 12px;
+}
+
+/* ---------------------------------------------------------------------------
+   Ticker universe (/tickers) — browse every tracked asset with sort / filter
+   controls and a per-card predict button. Each card is its own cursor-spotlight
+   surface (glow + border ring) like the metric cards, and the predict control
+   stretches full width so it reads as the primary action.
+--------------------------------------------------------------------------- */
+.ticker-universe-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin: 4px 0 22px;
+}
+
+.ticker-universe-controls-lead {
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+
+.ticker-universe-search {
+  width: min(280px, 60vw);
+}
+
+.ticker-universe-count {
+  flex: 0 0 auto;
+  color: rgba(219, 230, 223, 0.66);
+  font-size: 0.86rem;
+  font-weight: 750;
+  white-space: nowrap;
+}
+
+.ticker-universe-control-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+/* The shared horizon segmented control reserves 420px for the leaderboard; the
+   compact sort / direction selectors here only need to fit their labels. */
+.ticker-universe-segment .horizon-selector {
+  min-width: 0;
+}
+
+.ticker-universe-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(264px, 1fr));
+  gap: 16px;
+  margin-top: 4px;
+}
+
+.ticker-universe-magic {
+  position: relative;
+  border-radius: 8px;
+}
+
+.ticker-universe-magic::before {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  content: "";
+  border-radius: inherit;
+  background:
+    radial-gradient(300px circle at var(--magic-x) var(--magic-y),
+      rgba(34, 211, 238, 0.18),
+      rgba(74, 222, 128, 0.13) 32%,
+      transparent 68%);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 180ms ease;
+}
+
+.ticker-universe-magic::after {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  content: "";
+  border-radius: inherit;
+  padding: 1px;
+  background:
+    radial-gradient(260px circle at var(--magic-x) var(--magic-y),
+      rgba(34, 211, 238, 1),
+      rgba(74, 222, 128, 0.92) 28%,
+      rgba(163, 230, 53, 0.5) 48%,
+      transparent 72%);
+  opacity: 0;
+  pointer-events: none;
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  transition: opacity 180ms ease;
+}
+
+.ticker-universe-magic:hover::before,
+.ticker-universe-magic:hover::after {
+  opacity: 1;
+}
+
+.ticker-universe-card {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  gap: 16px;
+  height: 100%;
+  padding: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.52);
+  border-radius: 8px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.11), rgba(255, 255, 255, 0.04)),
+    rgba(8, 13, 11, 0.41);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 24px 70px rgba(0, 0, 0, 0.28);
+  backdrop-filter: blur(16px) saturate(1.35);
+  -webkit-backdrop-filter: blur(16px) saturate(1.35);
+  transition:
+    border-color 160ms ease,
+    background-color 160ms ease;
+}
+
+.ticker-universe-magic:hover .ticker-universe-card {
+  border-color: rgba(187, 247, 208, 0.5);
+  background:
+    radial-gradient(420px circle at var(--magic-x) var(--magic-y),
+      rgba(74, 222, 128, 0.08),
+      rgba(34, 211, 238, 0.045) 38%,
+      transparent 64%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.045)),
+    rgba(8, 13, 11, 0.42);
+}
+
+.ticker-universe-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.ticker-universe-identity {
+  min-width: 0;
+}
+
+.ticker-universe-symbol {
+  font-size: 1.18rem;
+  font-weight: 850;
+  letter-spacing: -0.01em;
+  color: #ffffff;
+}
+
+.ticker-universe-move-block {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  text-align: right;
+}
+
+.ticker-universe-move-label {
+  color: rgba(219, 230, 223, 0.58);
+  font-size: 0.68rem;
+  font-weight: 750;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  cursor: help;
+}
+
+.ticker-universe-daily {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 1.06rem;
+  font-weight: 850;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.ticker-universe-daily svg {
+  width: 0.98rem;
+  height: 0.98rem;
+}
+
+.ticker-universe-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  align-self: start;
+}
+
+.ticker-universe-stat {
+  min-width: 0;
+}
+
+.ticker-universe-stat-label {
+  display: inline-block;
+  color: #4ade80;
+  font-size: 0.72rem;
+  font-weight: 750;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: help;
+}
+
+/* Color comes from the move class (.prediction-return-up/-down or the flat
+   fallback) so bullish / bearish leans read green / red. */
+.ticker-universe-stat-value {
+  display: block;
+  margin-top: 5px;
+  font-size: 1.12rem;
+  font-weight: 820;
+  font-variant-numeric: tabular-nums;
+}
+
+.ticker-universe-move-flat {
+  color: rgba(219, 230, 223, 0.7);
+}
+
+/* The predict control normally hugs its label; in a card it becomes the primary
+   full-width action. */
+.ticker-universe-card-action .predict-control-wrap {
+  width: 100%;
+}
+
+.ticker-universe-card-action .predict-control-button.mantine-Button-root {
+  width: 100%;
+}
+
+@media (max-width: 620px) {
+  .ticker-universe-controls-lead {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .ticker-universe-search {
+    width: 100%;
+  }
+
+  .ticker-universe-control-group {
+    width: 100%;
+  }
 }
 
 .model-metrics-table {
@@ -3470,15 +3979,82 @@ h2,
 .auth-modal .mantine-Modal-content {
   position: relative;
   overflow: visible;
-  border: 1px solid rgba(255, 255, 255, 0.16);
+  border: 0;
   border-radius: 8px;
   color: #ffffff;
-  background: rgba(9, 14, 12, 0.76);
+  background: transparent;
+  box-shadow: none;
+}
+
+/* The modal content is now a cursor-spotlight surface (like .status-strip /
+   section panels): the glass panel, border, and highlighted border ring live
+   on the surface so it reacts to --magic-x/y from MagicHoverSurface. */
+.auth-modal-surface {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 8px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.03)),
+    rgba(9, 14, 12, 0.76);
   box-shadow:
     0 28px 70px rgba(0, 0, 0, 0.44),
     inset 0 1px 0 rgba(255, 255, 255, 0.08);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
+}
+
+.auth-modal-surface::before {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  content: "";
+  border-radius: inherit;
+  background:
+    radial-gradient(420px circle at var(--magic-x) var(--magic-y),
+      rgba(74, 222, 128, 0.14),
+      rgba(34, 211, 238, 0.08) 38%,
+      transparent 70%);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 180ms ease;
+}
+
+.auth-modal-surface::after {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  content: "";
+  border-radius: inherit;
+  padding: 1px;
+  background:
+    radial-gradient(360px circle at var(--magic-x) var(--magic-y),
+      rgba(34, 211, 238, 0.98),
+      rgba(74, 222, 128, 0.9) 30%,
+      rgba(163, 230, 53, 0.44) 50%,
+      transparent 72%);
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 180ms ease;
+}
+
+.auth-modal-surface:hover::before,
+.auth-modal-surface:hover::after {
+  opacity: 1;
+}
+
+/* Keep the modal content (close button, views) above the spotlight glow. */
+.auth-modal-surface > * {
+  position: relative;
+  z-index: 1;
 }
 
 .auth-modal-body {
@@ -3491,20 +4067,24 @@ h2,
   margin-top: 2px;
   border: 0;
   background: none;
-  color: rgba(219, 230, 223, 0.58);
+  color: #86efac;
   font-size: 0.78rem;
-  font-weight: 650;
+  font-weight: 720;
   cursor: pointer;
   text-decoration: underline;
   text-underline-offset: 3px;
-  text-decoration-color: rgba(134, 239, 172, 0.32);
-  transition: color 160ms ease, text-decoration-color 160ms ease;
+  text-decoration-color: rgba(134, 239, 172, 0.42);
+  transition:
+    color 160ms ease,
+    text-decoration-color 160ms ease,
+    text-shadow 160ms ease;
 }
 
 .auth-modal-privacy-link:hover,
 .auth-modal-privacy-link:focus-visible {
   color: #bbf7d0;
-  text-decoration-color: #86efac;
+  text-decoration-color: #4ade80;
+  text-shadow: 0 0 14px rgba(74, 222, 128, 0.26);
   outline: none;
 }
 
@@ -3619,10 +4199,10 @@ h2,
   width: 34px;
   height: 34px;
   place-items: center;
-  border: 1px solid rgba(255, 255, 255, 0.16);
+  border: 1px solid rgba(74, 222, 128, 0.32);
   border-radius: 999px;
-  color: rgba(255, 255, 255, 0.8);
-  background: rgba(255, 255, 255, 0.07);
+  color: #86efac;
+  background: rgba(34, 197, 94, 0.12);
   cursor: pointer;
   transition:
     color 170ms ease,
@@ -3634,10 +4214,14 @@ h2,
 
 .auth-modal-close:hover,
 .auth-modal-close:focus-visible {
-  color: #ffffff;
-  border-color: rgba(255, 255, 255, 0.34);
-  background: rgba(255, 255, 255, 0.14);
-  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.24);
+  color: #04130a;
+  border-color: rgba(134, 239, 172, 0.7);
+  background:
+    linear-gradient(135deg, rgba(74, 222, 128, 0.95), rgba(45, 212, 191, 0.85));
+  box-shadow:
+    0 10px 26px rgba(0, 0, 0, 0.24),
+    0 0 22px rgba(34, 197, 94, 0.3);
+  outline: none;
   transform: translateY(-1px) scale(1.06) rotate(8deg);
 }
 
@@ -3971,8 +4555,42 @@ h2,
     grid-template-columns: 1fr;
   }
 
+  /* On mobile the preview collapses into a compact bar that sticks to the top of
+     the viewport, so it follows the user while they scroll through variants. */
   .avatar-preview-panel {
-    position: static;
+    position: sticky;
+    top: 10px;
+    z-index: 6;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 12px 16px;
+    text-align: left;
+    background: rgba(13, 18, 15, 0.82);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    box-shadow: 0 16px 38px rgba(0, 0, 0, 0.4);
+  }
+
+  /* The big avatar is the obvious focus of the bar, so the "Preview" label is
+     redundant on mobile and is hidden to give the avatar more room. */
+  .avatar-preview-panel .avatar-editor-title {
+    display: none;
+  }
+
+  .avatar-preview-panel .avatar-preview-image {
+    order: 1;
+    width: 96px;
+    flex: 0 0 auto;
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.34);
+  }
+
+  .avatar-preview-panel .avatar-randomize-button {
+    order: 3;
+    width: auto;
+    flex: 0 0 auto;
   }
 
   .prediction-sentence {

@@ -17,6 +17,7 @@ const childSpotlightSelector = [
   ".model-toggle",
   ".spotlight-control-wrap",
   ".landing-faq-item",
+  ".prediction-surface-card .mantine-Input-wrapper",
 ].join(",");
 
 export default function MagicHoverSurface({ children, className = "" }: Props) {
