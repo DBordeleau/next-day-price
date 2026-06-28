@@ -1,20 +1,20 @@
 import { Button } from "@mantine/core";
 import { FiArrowLeft } from "react-icons/fi";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
+import { previousPathname } from "../../utils/navigationHistory";
 
 export default function BackToDashboardButton() {
   const navigate = useNavigate();
-  const location = useLocation();
-  // location.key === "default" means this is the first history entry (e.g. a
-  // deep link or hard refresh onto a ticker/model page); there is no dashboard
-  // entry to go back to.
-  const canGoBack = location.key !== "default";
 
   const handleClick = () => {
-    if (canGoBack) {
-      navigate(-1); // POP -> ScrollManager restores the saved dashboard offset
+    if (previousPathname() === "/dashboard") {
+      // The dashboard is the immediately previous history entry: POP back so the
+      // ScrollManager restores the dashboard's saved scroll position.
+      navigate(-1);
     } else {
-      navigate("/dashboard"); // deep link / hard refresh: open the dashboard at the top
+      // Came from elsewhere (another ticker/model page) or a deep link: open the
+      // dashboard fresh at the top instead of walking back through history.
+      navigate("/dashboard");
     }
   };
 

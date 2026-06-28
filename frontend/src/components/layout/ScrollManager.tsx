@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef } from "react";
 import { useLocation, useNavigationType } from "react-router-dom";
+import { recordHistoryEntry } from "../../utils/navigationHistory";
 
 // Per-history-entry scroll memory. Keyed by location.key, which React Router
 // assigns a unique value to every history entry (including REPLACE).
@@ -70,6 +71,10 @@ export default function ScrollManager() {
     // scroll events triggered below are attributed here, not to the prior entry.
     activeKeyRef.current = location.key;
 
+    // Mirror this history index -> pathname so navigation UI (the "Back to
+    // dashboard" button) can tell what the previous entry is.
+    recordHistoryEntry(location.pathname);
+
     // Respect in-page anchor links if any are ever added.
     if (location.hash) {
       const el = document.getElementById(location.hash.slice(1));
@@ -86,7 +91,7 @@ export default function ScrollManager() {
       // PUSH / REPLACE => a newly opened page. Start at the top.
       window.scrollTo(0, 0);
     }
-  }, [location.key, location.hash, navigationType]);
+  }, [location.key, location.hash, location.pathname, navigationType]);
 
   return null;
 }
