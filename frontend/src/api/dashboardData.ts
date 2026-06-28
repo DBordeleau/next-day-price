@@ -423,6 +423,162 @@ export async function fetchTickerCloseSnapshot(ticker: string): Promise<TickerCl
   return normalizeTickerCloseSnapshot(data ?? []);
 }
 
+export type PriceChangeHorizon = "1w" | "1m" | "3m" | "1y";
+
+export type TickerPriceChange = {
+  ticker: string;
+  date: string;
+  close: number;
+  // Trailing return over each horizon (latest close vs. the close ~that long ago).
+  changes: Partial<Record<PriceChangeHorizon, number>>;
+};
+
+// Calendar-day lookback for each horizon's trailing price move.
+const priceChangeLookbackDays: Record<PriceChangeHorizon, number> = {
+  "1w": 7,
+  "1m": 30,
+  "3m": 91,
+  "1y": 365,
+};
+
+// Bulk trailing price move for every ticker across all horizons, used by the
+// /tickers browse grid. It resolves the latest global trading date plus the
+// nearest trading date on/before each horizon's lookback anchor, then reads each
+// of those dates' closes in one paginated pass — so the whole universe (all
+// horizons) costs a handful of queries and is computed once per session.
+export async function fetchTickerPriceChanges(): Promise<Record<string, TickerPriceChange>> {
+  if (!supabase) {
+    return Object.fromEntries(
+      Object.values(fallbackTickerCloseSnapshots).map((snapshot) => [
+        snapshot.ticker,
+        {
+          ticker: snapshot.ticker,
+          date: snapshot.date,
+          close: snapshot.close,
+          // Offline demo lacks deep history; surface the one move it has.
+          changes: {
+            "1w": snapshot.change_percent ?? undefined,
+            "1m": snapshot.change_percent ?? undefined,
+            "3m": snapshot.change_percent ?? undefined,
+            "1y": snapshot.change_percent ?? undefined,
+          },
+        },
+      ]),
+    );
+  }
+
+  const db = supabase;
+  const latestDate = await fetchMaxPriceDate(db);
+  if (!latestDate) {
+    return {};
+  }
+
+  const horizons = Object.keys(priceChangeLookbackDays) as PriceChangeHorizon[];
+
+  // Nearest actual trading date on/before each horizon's calendar anchor.
+  const horizonDates = new Map<PriceChangeHorizon, string>();
+  await Promise.all(
+    horizons.map(async (horizon) => {
+      const anchor = shiftIsoDate(latestDate, -priceChangeLookbackDays[horizon]);
+      const tradingDate = await fetchMaxPriceDate(db, shiftIsoDate(anchor, 1));
+      if (tradingDate) {
+        horizonDates.set(horizon, tradingDate);
+      }
+    }),
+  );
+
+  // One close lookup per distinct date (latest + each resolved horizon date).
+  const horizonDateValues = Array.from(horizonDates.values());
+  const uniqueDates = Array.from(new Set([latestDate, ...horizonDateValues]));
+  const closesByDate = new Map<string, Map<string, number>>();
+  await Promise.all(
+    uniqueDates.map(async (date) => {
+      closesByDate.set(date, await fetchClosesForDate(db, date));
+    }),
+  );
+
+  const latestCloses = closesByDate.get(latestDate) ?? new Map<string, number>();
+  const result: Record<string, TickerPriceChange> = {};
+  latestCloses.forEach((close, ticker) => {
+    const changes: Partial<Record<PriceChangeHorizon, number>> = {};
+    horizons.forEach((horizon) => {
+      const horizonDate = horizonDates.get(horizon);
+      const priorClose = horizonDate ? closesByDate.get(horizonDate)?.get(ticker) : undefined;
+      if (priorClose != null && priorClose !== 0) {
+        changes[horizon] = close / priorClose - 1;
+      }
+    });
+    result[ticker] = { ticker, date: latestDate, close, changes };
+  });
+  return result;
+}
+
+// Shift a "YYYY-MM-DD" date by a number of days, in UTC to avoid TZ drift.
+function shiftIsoDate(isoDate: string, deltaDays: number): string {
+  const [year, month, day] = isoDate.split("-").map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  date.setUTCDate(date.getUTCDate() + deltaDays);
+  return date.toISOString().slice(0, 10);
+}
+
+async function fetchMaxPriceDate(
+  db: NonNullable<typeof supabase>,
+  before?: string,
+): Promise<string | null> {
+  let query = db.from("prices").select("date").order("date", { ascending: false }).limit(1);
+  if (before) {
+    query = query.lt("date", before);
+  }
+  const { data, error } = await query.maybeSingle();
+  if (error) {
+    if (error.code === "42P01" || error.message.includes("prices")) {
+      return null;
+    }
+    throw error;
+  }
+  return cleanString((data as { date?: unknown } | null)?.date) ?? null;
+}
+
+async function fetchClosesForDate(
+  db: NonNullable<typeof supabase>,
+  date: string,
+): Promise<Map<string, number>> {
+  const closes = new Map<string, number>();
+  let start = 0;
+
+  for (;;) {
+    const { data, error } = await db
+      .from("prices")
+      .select("ticker,close")
+      .eq("date", date)
+      .order("ticker")
+      .range(start, start + dashboardPageSize - 1);
+
+    if (error) {
+      if (error.code === "42P01" || error.message.includes("prices")) {
+        break;
+      }
+      throw error;
+    }
+
+    const batch = data ?? [];
+    for (const row of batch) {
+      const ticker = cleanString((row as { ticker?: unknown }).ticker);
+      const close = cleanNumber((row as { close?: unknown }).close);
+      if (ticker && close != null) {
+        closes.set(ticker.toUpperCase(), close);
+      }
+    }
+
+    if (batch.length < dashboardPageSize) {
+      break;
+    }
+    start += dashboardPageSize;
+  }
+
+  return closes;
+}
+
 export async function fetchModelMetrics(): Promise<ModelMetricRow[]> {
   if (!supabase) {
     return fallbackDashboardData.modelMetrics;

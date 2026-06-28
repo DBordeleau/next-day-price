@@ -5,6 +5,7 @@ type Props = {
   value: MetricHorizon;
   onChange: (horizon: MetricHorizon) => void;
   label?: string;
+  includeAll?: boolean;
 };
 
 const options: { label: string; value: MetricHorizon; description: string }[] = [
@@ -39,12 +40,15 @@ export default function PredictionHorizonSelector({
   value,
   onChange,
   label = "Prediction horizon",
+  includeAll = true,
 }: Props) {
+  const visibleOptions = includeAll ? options : options.filter((option) => option.value !== "all");
+
   return (
     <div className="horizon-selector-wrap prediction-horizon-selector" aria-label={label}>
       <SegmentedControl
         className="horizon-selector"
-        data={options.map((option) => ({
+        data={visibleOptions.map((option) => ({
           value: option.value,
           label: (
             <Tooltip label={option.description} openDelay={250}>
