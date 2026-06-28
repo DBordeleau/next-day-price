@@ -7,6 +7,7 @@ import { FiAlertTriangle, FiX } from "react-icons/fi";
 import { isSupabaseConfigured } from "../../api/supabaseClient";
 import { signInWithProvider } from "../../auth/authApi";
 import type { AuthProviderName } from "../../auth/types";
+import MagicHoverSurface from "../layout/MagicHoverSurface";
 import PrivacyPolicy from "./PrivacyPolicy";
 
 const MotionPresence = AnimatePresence as unknown as ComponentType<{
@@ -66,6 +67,7 @@ export default function SignInModal({ opened, onClose }: Props) {
       overlayProps={{ backgroundOpacity: 0.5, blur: 8 }}
       transitionProps={{ transition: "pop", duration: 180 }}
     >
+      <MagicHoverSurface className="auth-modal-surface">
       <button type="button" className="auth-modal-close" aria-label="Close sign in modal" onClick={onClose}>
         <FiX />
       </button>
@@ -126,6 +128,7 @@ export default function SignInModal({ opened, onClose }: Props) {
           </motion.div>
         )}
       </MotionPresence>
+      </MagicHoverSurface>
     </Modal>
   );
 }

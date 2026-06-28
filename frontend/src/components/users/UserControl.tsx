@@ -105,7 +105,7 @@ export default function UserControl() {
               label="Make prediction"
               x={compactMenu ? 0 : -36}
               y={compactMenu ? -232 : -205}
-              onClick={() => go("/dashboard")}
+              onClick={() => go("/tickers")}
             />
           </motion.div>
         ) : null}
