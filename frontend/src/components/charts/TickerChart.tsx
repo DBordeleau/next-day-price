@@ -62,7 +62,7 @@ type ChartRowMetadata = {
 type ChartRow = {
   x: string;
   timestamp: number;
-  kind: "edge" | "close" | "intraday" | "current" | "forecast";
+  kind: "edge" | "history" | "close" | "current" | "forecast";
   actual: number | null;
   metadata?: ChartRowMetadata;
   [key: string]: string | number | [number, number] | ChartRowMetadata | null | undefined;
@@ -145,7 +145,6 @@ export default function TickerChart({
     () =>
       buildChartResult({
         daily: priceSeries.daily,
-        intraday: priceSeries.intraday,
         displayPrice,
         predictions: chartPredictions,
         selectedHorizon,
@@ -157,7 +156,6 @@ export default function TickerChart({
       chartPredictions,
       normalizedTicker,
       priceSeries.daily,
-      priceSeries.intraday,
       selectedHorizon,
     ],
   );
@@ -305,7 +303,7 @@ export default function TickerChart({
                   stroke="#f4f7f5"
                   strokeWidth={3}
                   dot={renderActualDot}
-                  activeDot={{ r: 5, stroke: "#f4f7f5", strokeWidth: 2 }}
+                  activeDot={renderActualActiveDot}
                   connectNulls={false}
                   isAnimationActive={false}
                 />
@@ -335,22 +333,23 @@ export default function TickerChart({
 
 function buildChartResult({
   daily,
-  intraday,
   displayPrice,
   predictions,
   selectedHorizon,
   fallbackHistory,
 }: {
   daily: { date: string; close: number }[];
-  intraday: { ts: string; close: number }[];
   displayPrice: ReturnType<typeof resolveTickerDisplayPrice>;
   predictions: LatestPrediction[];
   selectedHorizon: PredictionHorizon;
   fallbackHistory: TickerHistoryRow[];
 }): ChartResult {
   const rows = new Map<string, ChartRow>();
-  const latestActualTs = latestActualTimestamp(daily, intraday, displayPrice);
+  const latestActualTs = latestActualTimestamp(daily, displayPrice);
   const lookbackStart = latestActualTs - horizonLookbackDays[selectedHorizon] * 86_400_000;
+  const latestDailyTimestamp = Math.max(
+    ...daily.map((point) => dateTimestamp(point.date)).filter(Number.isFinite),
+  );
 
   daily.forEach((point) => {
     const timestamp = dateTimestamp(point.date);
@@ -360,21 +359,8 @@ function buildChartResult({
     rows.set(point.date, {
       x: point.date,
       timestamp,
-      kind: "close",
+      kind: timestamp === latestDailyTimestamp ? "close" : "history",
       actual: point.close,
-    });
-  });
-
-  intraday.forEach((bar) => {
-    const timestamp = Date.parse(bar.ts);
-    if (!Number.isFinite(timestamp) || timestamp < lookbackStart) {
-      return;
-    }
-    rows.set(bar.ts, {
-      x: bar.ts,
-      timestamp,
-      kind: "intraday",
-      actual: bar.close,
     });
   });
 
@@ -613,12 +599,10 @@ function predictionSortValue(row: LatestPrediction) {
 
 function latestActualTimestamp(
   daily: { date: string; close: number }[],
-  intraday: { ts: string; close: number }[],
   displayPrice: ReturnType<typeof resolveTickerDisplayPrice>,
 ) {
   const values = [
     ...daily.map((row) => dateTimestamp(row.date)),
-    ...intraday.map((row) => Date.parse(row.ts)),
     displayPrice ? Date.parse(displayPrice.asOf) : NaN,
   ].filter(Number.isFinite);
   return values.length > 0 ? Math.max(...values) : Date.now();
@@ -753,6 +737,26 @@ function renderActualDot(props: unknown) {
     );
   }
   return <g />;
+}
+
+function renderActualActiveDot(props: unknown) {
+  const dot = props as { cx?: number; cy?: number; payload?: ChartRow };
+  if (dot.cx == null || dot.cy == null || !dot.payload) {
+    return <g />;
+  }
+  if (dot.payload.kind !== "close" && dot.payload.kind !== "current") {
+    return <g />;
+  }
+  return (
+    <circle
+      cx={dot.cx}
+      cy={dot.cy}
+      r={5.5}
+      fill="#f4f7f5"
+      stroke={dot.payload.kind === "current" ? "#22c55e" : "#06110b"}
+      strokeWidth={2.4}
+    />
+  );
 }
 
 function renderForecastDot(model: string, color: string) {
