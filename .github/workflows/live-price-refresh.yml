@@ -1,10 +1,8 @@
 name: Live Price Refresh
 
 on:
-  schedule:
-    # Broad UTC window covering 9:30 AM-4:00 PM ET in both EDT and EST.
-    # The CLI's --regular-hours-only guard performs the exact ET session check.
-    - cron: "*/5 13-21 * * 1-5"
+  # Supabase Cron owns the production minute-level live price refresh. Keep this
+  # workflow manual-only as a fallback repair tool.
   workflow_dispatch:
 
 permissions:

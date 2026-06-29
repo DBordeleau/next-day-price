@@ -142,6 +142,34 @@ python -m pipeline.cli run-daily
 
 The command writes `data_exports/runtime_benchmark.json` with cold/warm timings, prediction counts, approximate Python allocation/RSS data, Hugging Face cache size when available, and an automation recommendation.
 
+## Live Price Refresh
+
+Regular-session live prices are refreshed by the Supabase Edge Function at `supabase/functions/refresh-live-prices`. The function uses Yahoo's free multi-symbol Spark endpoint to refresh the compact `live_price_snapshots` table once per minute during the broad market-hours window. It does not write intraday bars, because the frontend only needs the latest current price snapshot.
+
+Deploy the function:
+
+```bash
+supabase functions deploy refresh-live-prices
+```
+
+Before applying `supabase/migrations/018_schedule_live_price_refresh.sql`, enable Vault and create these Supabase Vault secrets in the SQL editor:
+
+```sql
+create extension if not exists supabase_vault with schema vault;
+
+select vault.create_secret(
+  'https://<project-ref>.supabase.co/functions/v1/refresh-live-prices',
+  'live_price_refresh_url'
+);
+
+select vault.create_secret(
+  '<supabase-service-role-key>',
+  'live_price_refresh_service_role_key'
+);
+```
+
+Then run the migration. It schedules `live-price-refresh-every-minute` for every minute in a broad UTC weekday window; the Edge Function itself enforces exact NYSE trading days and 9:30am-4:00pm ET. The GitHub Actions live-price workflow is manual-only and should be used only as a fallback repair job.
+
 ## Frontend
 
 ```bash
