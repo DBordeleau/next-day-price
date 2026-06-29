@@ -1,6 +1,7 @@
 const MARKET_TIME_ZONE = "America/New_York";
 const LIVE_STALE_SECONDS = 75;
 const CLOSED_STALE_MINUTES = 15;
+const SPARK_MAX_SYMBOLS_PER_REQUEST = 20;
 const DEFAULT_TICKERS = [
   "AAPL",
   "MSFT",
@@ -88,10 +89,6 @@ Deno.serve(async (request) => {
   if (request.method !== "POST") {
     return jsonResponse({ error: "Method not allowed." }, 405);
   }
-  if (!isAuthorizedRequest(request)) {
-    console.warn("Unauthorized live price refresh request.");
-    return jsonResponse({ error: "Unauthorized." }, 401);
-  }
 
   const startedAt = new Date();
   const requestBody = await readRequestBody(request);
@@ -127,6 +124,7 @@ Deno.serve(async (request) => {
     const message = error instanceof Error
       ? error.message
       : "Unknown refresh error.";
+    console.error("Live price refresh failed:", message);
     await insertFetchEvent({
       provider: "yahoo_spark",
       requested_tickers: tickers,
@@ -193,6 +191,23 @@ async function refreshLivePrices(tickers: string[], startedAt: Date) {
 }
 
 async function fetchSparkRows(tickers: string[]) {
+  const rows: Record<string, SparkTickerResult> = {};
+  for (
+    let start = 0;
+    start < tickers.length;
+    start += SPARK_MAX_SYMBOLS_PER_REQUEST
+  ) {
+    Object.assign(
+      rows,
+      await fetchSparkRowsChunk(
+        tickers.slice(start, start + SPARK_MAX_SYMBOLS_PER_REQUEST),
+      ),
+    );
+  }
+  return rows;
+}
+
+async function fetchSparkRowsChunk(tickers: string[]) {
   const endpoint = new URL("https://query1.finance.yahoo.com/v8/finance/spark");
   endpoint.searchParams.set("symbols", tickers.join(","));
   endpoint.searchParams.set("range", "1d");
@@ -209,7 +224,8 @@ async function fetchSparkRows(tickers: string[]) {
     });
     if (!response.ok) {
       throw new Error(
-        `Yahoo Spark request failed with HTTP ${response.status}.`,
+        `Yahoo Spark request failed with HTTP ${response.status}: ${await response
+          .text()}`,
       );
     }
     return (await response.json()) as Record<string, SparkTickerResult>;
@@ -351,17 +367,6 @@ async function supabaseFetch(path: string, init: RequestInit) {
       ...(init.headers ?? {}),
     },
   });
-}
-
-function isAuthorizedRequest(request: Request) {
-  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-  if (!serviceRoleKey) {
-    console.error("SUPABASE_SERVICE_ROLE_KEY is not configured.");
-    return false;
-  }
-
-  const authorization = request.headers.get("Authorization");
-  return authorization === `Bearer ${serviceRoleKey}`;
 }
 
 async function readRequestBody(request: Request): Promise<RefreshRequest> {
