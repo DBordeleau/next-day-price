@@ -144,13 +144,15 @@ The command writes `data_exports/runtime_benchmark.json` with cold/warm timings,
 
 ## Live Price Refresh
 
-Regular-session live prices are refreshed by the Supabase Edge Function at `supabase/functions/refresh-live-prices`. The function uses Yahoo's free multi-symbol Spark endpoint to refresh the compact `live_price_snapshots` table once per minute during the broad market-hours window. It does not write intraday bars, because the frontend only needs the latest current price snapshot.
+Regular-session live prices are refreshed by the Supabase Edge Function at `supabase/functions/refresh-live-prices`. The function uses Yahoo's free multi-symbol Spark endpoint to refresh the compact `live_price_snapshots` table once per minute during the broad market-hours window. Spark currently accepts up to 20 symbols per request, so the function chunks the ticker universe and merges the results. It does not write intraday bars, because the frontend only needs the latest current price snapshot.
 
 Deploy the function:
 
 ```bash
-supabase functions deploy refresh-live-prices
+npx supabase@latest functions deploy refresh-live-prices --project-ref <project-ref>
 ```
+
+The function is configured in `supabase/config.toml` with `verify_jwt = true`. Cron calls it with the legacy Supabase `service_role` JWT stored in Vault.
 
 Before applying `supabase/migrations/018_schedule_live_price_refresh.sql`, enable Vault and create these Supabase Vault secrets in the SQL editor:
 
